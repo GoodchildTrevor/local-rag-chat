@@ -115,6 +115,5 @@ if __name__ == "__main__":
         collection_name=collection,
         dense_embeddings=dense_embeddings,
         late_embeddings=late_embeddings,
-        late = True,
-        recreation=True,
+        late=True,
     ).build_collection()
