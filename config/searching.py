@@ -1,0 +1,12 @@
+# Searh limits
+DENSE_LIMIT = 20
+SPARSE_LIMIT = 20
+LATE_LIMIT = 5
+DENSE_THRESHOLD = 0.5
+SPARSE_THRESHOLD = 2.0
+THRESHOLD = 0.3 # Empirical
+TOP_K = 3 # Temporary because of weak videocard
+# Ragas settings
+MAX_ATTEMPTS = 3
+RELEVANCY_THRESHOLD = 0.7
+FAITHFULNESS_THRESHOLD = 0.8

@@ -1,0 +1,15 @@
+aspose-words==25.7.0
+fastapi==0.115.13
+fastembed==0.7.1
+llama-index==0.6.14
+nicegui==2.20.0
+pillow==11.1.0
+pymupdf==1.26.1
+pymorphy2==0.9.1
+pytesseract==0.3.13
+ragas==0.2.15
+razdel==0.5.0
+stop-words==2018.7.23
+tiktoken==0.9.0
+qdrant-client==1.14.3
+uvicorn==0.33.0
