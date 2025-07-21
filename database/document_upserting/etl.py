@@ -14,7 +14,7 @@ from data_processing import (
     chunker,
     extract_text_metadata,
 )
-from database.collection_creator.data_loader import upsert_data, get_new_file_paths
+from database.document_upserting.data_loader import upsert_data, get_new_file_paths
 from config.database import (
     BATCH_SIZE,
     DENSE_EMBEDDING_MODEL,
@@ -47,7 +47,7 @@ dense_embedding_model = TextEmbedding(DENSE_EMBEDDING_MODEL)
 bm25_embedding_model = SparseTextEmbedding(SPARSE_EMBEDDING_MODEL)
 late_interaction_embedding_model = LateInteractionTextEmbedding(LATE_EMBEDDING_MODEL)
 
-folder_path = Path(__file__).parent / 'documents'
+folder_path = Path(__file__).parent.parent / 'documents'
 files = dict()
 logger.info(f"Scanning folder: {folder_path}")
 
