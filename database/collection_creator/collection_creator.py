@@ -1,6 +1,12 @@
+from dotenv import load_dotenv
+import os
+
 from qdrant_client.models import models
 
 from config.settings import get_settings
+
+load_dotenv()
+collection = os.getenv("RAG_DOC_COLLECTION")
 
 settings = get_settings()
 
@@ -106,7 +112,7 @@ if __name__ == "__main__":
     dense_embeddings = list(settings.dense_embedding_model.embed(sample_text))
     late_embeddings = [list(vectors) for vectors in settings.late_interaction_embedding_model.embed(sample_text)]
     CreateCollection(
-        collection_name="documents",
+        collection_name=collection,
         dense_embeddings=dense_embeddings,
         late_embeddings=late_embeddings,
         late = True,
