@@ -10,7 +10,7 @@ from fastembed import (
     SparseTextEmbedding,
 )
 
-from data_processing import (
+from database.document_upserting.data_processing import (
     chunker,
     extract_text_metadata,
 )

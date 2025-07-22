@@ -44,7 +44,6 @@ APP_PORT = os.getenv("APP_PORT")
 class Settings(BaseSettings):
     app_port: int = APP_PORT
     client: QdrantClient = QdrantClient(HOST, port=DB_PORT)
-    model_path: str
     top_k: int = TOP_K
     relevancy_threshold: float = RELEVANCY_THRESHOLD
     faithfulness_threshold: float = FAITHFULNESS_THRESHOLD
