@@ -1,10 +1,8 @@
-from typing import Any
-
 import asyncio
 from qdrant_client import models
 from razdel import tokenize
 
-from database.searcher.search import combined_dense_sparse_scores
+from database.searcher.search import combined_dense_sparse_scores, HybridHit
 from chat.interface.chat_utils import get_normal_form
 from config.settings import get_settings
 
@@ -12,7 +10,9 @@ settings = get_settings()
 
 
 class Search:
-
+    """
+    Main class for Qdrant DB search
+    """
     def __init__(
         self,
         logger,
@@ -45,7 +45,7 @@ class Search:
         self.logger.info(f"Query: `{query}` → normalized `{normalized_query}`")
         return normalized_query
 
-    async def get_searching_results(self, query: str) -> tuple[Any, ...]:
+    async def get_searching_results(self, query: str) -> list[HybridHit]:
         """
         Vectorizes the user's query and retrieves relevant search results.
         1. Normalizes and processes the input query.

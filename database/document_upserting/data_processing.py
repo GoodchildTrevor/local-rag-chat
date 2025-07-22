@@ -1,4 +1,6 @@
 from collections.abc import Iterable
+from pathlib import Path
+
 from datetime import datetime, timezone, timedelta
 from logging import Logger
 import os
@@ -145,7 +147,7 @@ def safe_decode(s: str) -> str:
         return s
 
 
-def extract_text_metadata(logger: Logger, file_path: str, file_format: str) -> tuple:
+def extract_text_metadata(logger: Logger, file_path: Path, file_format: str) -> tuple:
     """
     Extracts textual content and metadata from a given file.
     :param logger: Logger instance for logging events.
@@ -182,7 +184,7 @@ def extract_text_metadata(logger: Logger, file_path: str, file_format: str) -> t
 def pdf_to_text(doc: Document) -> str:
     """
     Extract pdf text: both if it contains text or image
-    :param pymupdf Document
+    :param doc: pymupdf Document
     :return: text of document
     """
     full_text = ""
@@ -197,7 +199,7 @@ def pdf_to_text(doc: Document) -> str:
     return full_text
 
 
-def convert_doc_to_docx(file_path: str) -> str:
+def convert_doc_to_docx(file_path: Path) -> str:
     """
     Convert .doc extension to .docx extension
     :param file_path: link of the document
@@ -209,7 +211,7 @@ def convert_doc_to_docx(file_path: str) -> str:
     return new_path
 
 
-def word_to_text(all_parts: list[str]) -> str:
+def word_to_text(all_parts: list[list[list[list[list[str]]]]]) -> str:
     """
     Extract text form standard .doc and .docx files
     :param all_parts: list of word doc elements

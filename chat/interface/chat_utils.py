@@ -4,18 +4,21 @@ from logging import Logger
 from functools import lru_cache
 from pymorphy2 import MorphAnalyzer
 
+from database.searcher.search import HybridHit
+
 
 @lru_cache(maxsize=10000)
 def get_normal_form(word: str, morph: MorphAnalyzer) -> str:
     """
     Caching of popular lemmas to speed up computation.
     :param word: individual word from query
+    :param morph: lemmatizator
     :return: lemmatized (normal) form of the word
     """
     return morph.parse(word)[0].normal_form
 
 
-def extract_entities(results: list) -> tuple[set[str], list[str]]:
+def extract_entities(results: list[HybridHit]) -> tuple[set[str], list[str]]:
     """
     Extract only necessary things from search results.
     :param results: List of result objects
@@ -36,7 +39,7 @@ def extract_entities(results: list) -> tuple[set[str], list[str]]:
     return docs, paths
 
 
-async def search_display(results: tuple[Any, ...], logger: Logger) -> tuple[list | str]:
+async def search_display(results: list[HybridHit], logger: Logger) -> tuple[set[str], str]:
     """
     Extracting texts for context in prompt and links for message
     :param results: raw search results
@@ -48,8 +51,6 @@ async def search_display(results: tuple[Any, ...], logger: Logger) -> tuple[list
         logger.warning("No relevant documents")
         raise ValueError("No relevant documents")
 
-    docs, paths = extract_entities(results[:3])
+    docs, paths = extract_entities(results)
     display_docs = "Релевантные документы:\n" + "\n".join(paths)
     return docs, display_docs
-
-

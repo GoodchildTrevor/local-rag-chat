@@ -16,15 +16,10 @@ class CreateCollection:
     Utility class for creating or recreating a Qdrant collection
     with dense, sparse, and optionally late-interaction embeddings.
     :param collection_name: Name of the collection to create or recreate.
-    :type collection_name: str
     :param dense_embeddings: List of dense embedding vectors.
-    :type dense_embeddings: list[list[float]]
     :param late_embeddings: Optional 3D list of late interaction vectors for multi-vector configuration.
-    :type late_embeddings: list[list[list[float]], optional
     :param late: Flag to include late interaction vector configuration.
-    :type late: bool, optional
     :param recreation: Whether to recreate the collection (drops and creates anew).
-    :type recreation: bool, optional
     """
 
     def __init__(
