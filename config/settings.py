@@ -37,7 +37,7 @@ RU_STOPWORDS = set(get_stop_words("ru"))
 morph = pymorphy2.MorphAnalyzer()
 
 HOST = os.getenv("HOST")
-DB_PORT = os.getenv("PORT")
+DB_PORT = os.getenv("DB_PORT")
 APP_PORT = os.getenv("APP_PORT")
 
 
