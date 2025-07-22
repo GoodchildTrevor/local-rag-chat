@@ -16,12 +16,12 @@ from chat.interface.chat_utils import (
 )
 
 
-
 def setup_ui(app: FastAPI, search, ask_llm, logger):
     """Setup NiceGUI interface for the RAG chatbot"""
 
     @ui.page("/")
     def chat_page() -> None:
+        """Main page for chat"""
         # initialize empty history
         history: list[tuple[str, str]] = []
         # setup styles
@@ -41,19 +41,19 @@ def setup_ui(app: FastAPI, search, ask_llm, logger):
 
                     with ui.row().classes("items-start gap-3 mb-4 w-full"):
                         if sender == "user":
-                            ui.avatar("person", color="blue").classes("shrink-0") # Эмодзи для пользователя
+                            ui.avatar("person", color="blue").classes("shrink-0")  # User's emoji
                             with ui.column().classes("flex-1"):
                                 ui.markdown(f"**Вы:** {text}").classes(
                                     "bg-blue-100 p-3 rounded-lg max-w-prose"
                                 )
                             return None, None
                         else:
-                            ui.avatar("smart_toy", color="green").classes("shrink-0") # Эмодзи для бота
+                            ui.avatar("smart_toy", color="green").classes("shrink-0")  # Bot's emoji
                             with ui.column().classes("flex-1"):
-                                docs_md = ui.markdown(DOC_STANDBY).classes( # Используем константу
+                                docs_md = ui.markdown(DOC_STANDBY).classes(
                                     "bg-yellow-100 p-3 rounded-lg max-w-prose mb-2"
                                 )
-                                answer_md = ui.markdown(MODEL_STANDBY).classes( # Используем константу
+                                answer_md = ui.markdown(MODEL_STANDBY).classes(
                                     "bg-green-100 p-3 rounded-lg max-w-prose"
                                 )
                             return docs_md, answer_md
@@ -107,7 +107,7 @@ def setup_ui(app: FastAPI, search, ask_llm, logger):
                         try:
                             answer = await ask_llm(logger, msg, docs, history, results)
                             with history_ui:
-                                answer_md.content = f"{MODEL_RESPOND} {answer}" # Используем константу
+                                answer_md.content = f"{MODEL_RESPOND} {answer}"
                             history.append((msg, str(answer)))
                             logger.info(f"Successfully processed message: {str(answer)}")
                             logger.debug("ask_llm call completed.")
@@ -118,9 +118,10 @@ def setup_ui(app: FastAPI, search, ask_llm, logger):
                     finally:
                         input_box.props(remove="loading")
                         send_btn.props(remove="loading")
-                        clear_btn.props(remove="disable") # Включаем кнопку очистки после завершения
+                        clear_btn.props(remove="disable")
 
                         def scroll_to_bottom():
+                            """Auto scroll down after new message"""
                             ui.run_javascript("""
                                 const container = document.querySelector('.overflow-y-auto');
                                 if (container) {
@@ -137,8 +138,8 @@ def setup_ui(app: FastAPI, search, ask_llm, logger):
                 """Clears the chat history and updates the UI."""
                 history.clear()
                 history_ui.clear()  # delete all previous messages
-                render_message(GREETINGS, system=True) # render greeting message
-                ui.notify('История чата очищена.', type='info') # notify about cleaning
+                render_message(GREETINGS, system=True)  # render greeting message
+                ui.notify('История чата очищена.', type='info')  # notify about cleaning
                 logger.info("Chat history cleared.")
             # Input section
             with ui.card().classes("w-full"):
@@ -149,10 +150,10 @@ def setup_ui(app: FastAPI, search, ask_llm, logger):
                         .classes("flex-1")
                     )
 
-                    send_btn = ui.button(ENTER, on_click=lambda: asyncio.create_task(send())) # Используем константу
+                    send_btn = ui.button(ENTER, on_click=lambda: asyncio.create_task(send()))
                     send_btn.props("color=primary")
                     clear_btn = ui.button("Очистить историю", on_click=lambda: asyncio.create_task(clear_history()))
-                    clear_btn.props("color=positive") # Зеленый цвет
+                    clear_btn.props("color=positive")
                     # Enter key handler
                     input_box.on("keydown.enter", lambda e: asyncio.create_task(send()))
             # Initial system message
