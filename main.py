@@ -19,7 +19,7 @@ load_dotenv()
 collection = os.getenv("RAG_DOC_COLLECTION")
 
 # Configure logging to both file and console
-LOG_PATH = "chat/rag_chatbot.log"
+LOG_PATH = "rag_chatbot.log"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
