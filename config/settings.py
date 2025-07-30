@@ -78,4 +78,3 @@ def get_settings() -> Settings:
     :return: Application configuration object.
     """
     return Settings()
-
