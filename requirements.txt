@@ -12,6 +12,7 @@ pymorphy2==0.9.1
 pytesseract==0.3.13
 ragas==0.2.15
 razdel==0.5.0
+redis==6.3.0
 stop-words==2018.7.23
 tiktoken==0.9.0
 qdrant-client==1.14.3
