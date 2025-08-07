@@ -1,12 +1,15 @@
 from dotenv import load_dotenv
 import os
+import sys
 
 from qdrant_client.models import models
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from config.settings import get_settings
 
 load_dotenv()
-collection = os.getenv("RAG_DOC_COLLECTION")
+collection = os.getenv("CASH_COLLECTION")
 
 settings = get_settings()
 
@@ -27,6 +30,7 @@ class CreateCollection:
         collection_name: str,
         dense_embeddings: list[list[float]],
         late_embeddings: list[list[list[float]]] = None,
+        sparse: bool = True,
         late: bool = False,
         recreation: bool = False
     ):
@@ -34,6 +38,7 @@ class CreateCollection:
         self.collection_name = collection_name
         self.dense_embeddings = dense_embeddings
         self.late_embeddings = late_embeddings
+        self.sparse = sparse
         self.late = late
         self.recreation = recreation
 
@@ -42,22 +47,34 @@ class CreateCollection:
         Creates a Qdrant collection with the given configuration.
         :param configs: Dictionary containing vector and sparse vector configurations.
         """
-        self.client.create_collection(
-            collection_name=self.collection_name,
-            vectors_config=configs["vectors_config"],
-            sparse_vectors_config=configs["sparse_vectors_config"],
-        )
+        if self.sparse:
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=configs["vectors_config"],
+                sparse_vectors_config=configs["sparse_vectors_config"],
+            )
+        else:
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=configs["vectors_config"],
+            )
 
     def recreator(self, configs: dict) -> None:
         """
         Recreates (deletes and creates) a Qdrant collection with the given configuration.
         :param configs: Dictionary containing vector and sparse vector configurations.
         """
-        self.client.recreate_collection(
-            collection_name=self.collection_name,
-            vectors_config=configs["vectors_config"],
-            sparse_vectors_config=configs["sparse_vectors_config"],
-        )
+        if self.sparse:
+            self.client.recreate_collection(
+                collection_name=self.collection_name,
+                vectors_config=configs["vectors_config"],
+                sparse_vectors_config=configs["sparse_vectors_config"],
+            )
+        else:
+            self.client.recreate_collection(
+                collection_name=self.collection_name,
+                vectors_config=configs["vectors_config"],
+            )
 
     def build_collection(self,) -> None:
         """
@@ -90,11 +107,12 @@ class CreateCollection:
             vectors_config = {**dense_config, **late_config}
         else:
             vectors_config = dense_config
-
+        
         configs = {
             "vectors_config": vectors_config,
-            "sparse_vectors_config": sparse_config,
         }
+        if self.sparse:
+            configs["sparse_vectors_config"] = sparse_config
 
         if self.recreation:
             self.recreator(configs)
@@ -110,5 +128,4 @@ if __name__ == "__main__":
         collection_name=collection,
         dense_embeddings=dense_embeddings,
         late_embeddings=late_embeddings,
-        late=True,
     ).build_collection()

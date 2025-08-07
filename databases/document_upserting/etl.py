@@ -10,11 +10,11 @@ from fastembed import (
     SparseTextEmbedding,
 )
 
-from database.document_upserting.data_processing import (
+from databases.document_upserting.data_processing import (
     chunker,
     extract_text_metadata,
 )
-from database.document_upserting.data_loader import upsert_data, get_new_file_paths
+from databases.document_upserting.data_loader import upsert_data, get_new_file_paths
 from config.database import (
     BATCH_SIZE,
     DENSE_EMBEDDING_MODEL,
@@ -78,18 +78,24 @@ for file_path in paths_for_etl:
             bm25_embeddings.extend(bm25_embedding_model.embed(batch))
             late_interaction_embeddings.extend(late_interaction_embedding_model.embed(batch))
 
+        payload = {
+            "name": file_path.name,
+            "metadata": metadata,
+            "file_path": str(file_path),
+        },
+
+        total_points = len(raw_texts)
+        logger.info(f"Preparing to upsert {total_points} chunks from {file_path}")
+
         upsert_data(
             client=client,
             collection_name=collection,
             dense_embeddings=dense_embeddings,
             bm25_embeddings=bm25_embeddings,
             late_interaction_embeddings=late_interaction_embeddings,
-            name=file_path.name,
             documents=raw_texts,
-            metadata=metadata,
-            file_path=str(file_path)
         )
 
         logger.info(f"✅ Successfully ingested {len(chunks)} points from {file_path.name}")
     else:
-        logger.debug(f"Missing unknown file extension: {file_path}")
+        logger.debug(f"Missing unknown file extension: {str(file_path)}")

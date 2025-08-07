@@ -1,9 +1,10 @@
 import time
 import uuid
+from uuid import UUID
 import logging
 from more_itertools import chunked
 from pathlib import Path
-from typing import Any, List, Dict
+from typing import Any
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
@@ -18,13 +19,11 @@ settings = get_settings()
 def upsert_data(
     client: QdrantClient,
     collection_name: str,
-    dense_embeddings: List[List[float]],
-    bm25_embeddings: List[Any],  # SparseVectorObject
-    late_interaction_embeddings: List[List[float]],
-    name: str,
-    documents: List[str],
-    metadata: Dict[str, Any],
-    file_path: str,
+    dense_embeddings: list[list[float]],
+    bm25_embeddings: list[Any] | None,  # SparseVectorObject
+    late_interaction_embeddings: list[list[float]] | None,
+    payload: dict,
+    documents: list[str],
     batch_size: int = 16,
 ) -> None:
     """
@@ -34,52 +33,57 @@ def upsert_data(
     :param dense_embeddings: list of dense vectors
     :param bm25_embeddings: list of sparse vector objects (with .as_object())
     :param late_interaction_embeddings: list of late-interaction vectors
-    :param name: name of doc
+    :param payload: additional info about text
     :param documents: original chunk texts
-    :param metadata: metadata dictionary for all chunks
-    :param file_path: source file path (for payload)
     :param batch_size: number of points per upsert batch
     """
-    total_points = len(dense_embeddings)
-    logger.info(f"Preparing to upsert {total_points} points from {file_path}")
+    embeddings_map = {}
+    if dense_embeddings is not None:
+        embeddings_map[settings.dense_vector_config] = dense_embeddings
+    if bm25_embeddings is not None:
+        embeddings_map[settings.sparse_vector_config] = bm25_embeddings
+    if late_interaction_embeddings is not None:
+        embeddings_map[settings.late_vector_config] = late_interaction_embeddings
 
-    # Build PointStruct list
-    points = []
-    for dense, sparse_obj, late, doc in zip(
-        dense_embeddings,
-        bm25_embeddings,
-        late_interaction_embeddings,
-        documents,
-    ):
-        point = PointStruct(
-            id=str(uuid.uuid4()),
-            vector={
-                settings.dense_vector_config: dense,
-                settings.sparse_vector_config: sparse_obj.as_object(),
-                settings.late_vector_config: late,
-            },
-            payload={
-                "name": name,
-                "document": doc,
-                "metadata": metadata,
-                "file_path": file_path,
-            },
-        )
-        points.append(point)
-    # Upsert in batches
-    for batch in chunked(points, batch_size):
+    if not embeddings_map:
+        logger.warning("No embeddings provided. Skipping upsert.")
+        return
+
+    def point_generator():
+        for i, doc in enumerate(documents):
+            vector_dict = {}
+            for name, embeds in embeddings_map.items():
+                if name == settings.sparse_vector_config:
+                    vector_dict[name] = embeds[i].as_object()
+                else:
+                    vector_dict[name] = embeds[i]
+
+            point_payload = payload.copy()
+            point_payload["document"] = doc
+            id = point_payload.get("question_id", str(uuid.uuid4()))
+
+            yield PointStruct(
+                id=id,
+                vector=vector_dict,
+                payload=point_payload,
+            )
+
+    upserted_points = 0
+    for batch in chunked(point_generator(), batch_size):
         try:
             client.upsert(
                 collection_name=collection_name,
-                points=batch
+                points=batch,
+                wait=True
             )
+            upserted_points += len(batch)
             logger.debug(f"Upserted batch of {len(batch)} points into '{collection_name}'")
 
             time.sleep(0.5)
         except Exception as e:
             logger.error(f"Failed to upsert batch: {e}")
 
-    logger.info(f"Completed upsert of {total_points} points into '{collection_name}'")
+    logger.info(f"Completed upsert of {upserted_points} points into '{collection_name}'")
 
 
 def get_new_file_paths(
