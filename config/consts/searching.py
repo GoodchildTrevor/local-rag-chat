@@ -5,6 +5,7 @@ LATE_LIMIT = 5
 DENSE_THRESHOLD = 0.5
 SPARSE_THRESHOLD = 2.0
 THRESHOLD = 0.3 # Empirical
+COSINE_SIMILARITY_THRESHOLD = 0.8
 TOP_K = 3 # Temporary because of weak videocard
 # Ragas settings
 MAX_ATTEMPTS = 3

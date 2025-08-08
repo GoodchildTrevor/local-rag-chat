@@ -1,7 +1,7 @@
 import asyncio
 import re
 
-from config.prompts import SYSTEM_PROMPT
+from config.consts.prompts import SYSTEM_PROMPT
 from llm.ollama_configs import (
     llm,
     PROMPT_TEMPLATE
