@@ -6,12 +6,12 @@ from typing import Optional
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.models import SparseVector
 
-from config.database import (
+from config.consts.database import (
     DENSE_VECTOR_CONFIG,
     SPARSE_VECTOR_CONFIG,
     LATE_VECTOR_CONFIG,
 )
-from config.searching import (
+from config.consts.searching import (
     DENSE_LIMIT,
     SPARSE_LIMIT,
     LATE_LIMIT,
