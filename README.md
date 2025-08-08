@@ -25,10 +25,13 @@ This project implements a lightweight **Retrieval-Augmented Generation (RAG)** p
 Create a `.env` file in the root directory:
 
 ```
-HOST=                 # your host
-DB_PORT=              # port for Qdrant
-RAG_DOC_COLLECTION=   # name of your collection
-APP_PORT=             # port for FastAPI
+HOST=                     # your host
+APP_PORT =                # port for FastAPI
+DB_PORT=                  # port for Qdrant
+REDIS_PORT=               # port for Redis
+RAG_DOC_COLLECTION=       # name of your main collection
+CASH_COLLECTION=          # name of cashing answer collection
+SESSION_TIMEOUT_MINUTES=  # length of session
 ```
 
 ```bash
@@ -41,7 +44,7 @@ python database//document_upserting/etl.py
 # 4. Run the API server
 python main.py
 # 5. Open the GUI
-# http://localhost:8000
+# http://localhost:{APP_PORT}
 ```
 
 ## 📂 Project Structure
@@ -51,11 +54,13 @@ RAG/
 │   ├── interface/            # NiceGUI frontend and utilities
 │   └── backend/              # Dialogue logic
 ├── config/                   # All constants for all components
+├── consts/                   # All main constants
 ├── database/                 # Database scripts
-│   ├── collection_creator    # Create/recreate collection
-│   ├── document_upserting    # Upsert documents
+│   ├── cashing/
+│   ├── collection_creator/   # Create/recreate collection
+│   ├── document_upserting/   # Upsert documents
 │   ├── documents/            # Raw documents to be indexed
-│   └── search                # Seacrh engine
-├── models/                   # Ollama config and inference scripts
+│   └── searcher/             # Seacrh engine
+├── llm/                      # Ollama config and inference scripts
 └── main.py                   # Entry point
 ```
