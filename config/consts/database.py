@@ -1,6 +1,3 @@
-# Database
-HOST = "localhost"
-PORT = 6333
 # Chunk info
 CHUNK_SIZE = 384  # Standard value maybe should replace
 OVERLAP = 1 # one sentence
@@ -21,5 +18,5 @@ LATE_VECTOR_CONFIG = "colbertv2.0"
 FILE_FORMATS = [
     ".pdf",
     "doc",
-    "docx"
+    "docx",
 ]
