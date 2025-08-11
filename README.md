@@ -56,7 +56,7 @@ RAG/
 ├── config/                   # All constants for all components
 ├── consts/                   # All main constants
 ├── database/                 # Database scripts
-│   ├── cashing/
+│   ├── cashing/              # Cashing of the best llm answers
 │   ├── collection_creator/   # Create/recreate collection
 │   ├── document_upserting/   # Upsert documents
 │   ├── documents/            # Raw documents to be indexed
