@@ -1,22 +1,18 @@
 import logging
-import os
-
-from dotenv import load_dotenv
 
 from fastapi import FastAPI
 from nicegui import ui
 
 from chat.interface.chat_ui import setup_ui
 from config.settings import (
-    get_settings,
-    ChatRequest
+    AppConfig,
+    ChatRequest,
+    ClientsConfig,
+    EmbeddingModelsConfig,
+    NLPConfig,
 )
-from models.ollama_inference import ask_llm
-from chat.backend.dialogue import Search
-
-load_dotenv()
-
-collection = os.getenv("RAG_DOC_COLLECTION")
+from llm.ollama_inference import ask_llm
+from chat.backend.dialogue import Dialogue
 
 # Configure logging to both file and console
 LOG_PATH = "rag_chatbot.log"
@@ -30,13 +26,19 @@ logging.basicConfig(
 )
 
 # Load application settings
-settings = get_settings()
+app_config = AppConfig()
+clients_config = ClientsConfig()
+embedding_models_config = EmbeddingModelsConfig()
+nlp_config= NLPConfig()
 # Initialize logger
-logger: logging.Logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 # Create the semantic search object with a vector collection
-search: Search = Search(
+dialogue = Dialogue(
+    app_config=app_config,
+    clients_config=clients_config,
+    embedding_models_config = embedding_models_config,
+    nlp_config=nlp_config,
     logger=logger,
-    collection=collection,
 )
 # Initialize FastAPI backend
 app: FastAPI = FastAPI()
@@ -58,12 +60,15 @@ async def chat_endpoint(req: ChatRequest):
 
 # Set up NiceGUI UI routes and layout
 setup_ui(
-    app,
-    search,
-    ask_llm,
-    logger
+    app=app,
+    app_config=app_config,
+    clients_config=clients_config,
+    embedding_models_config=embedding_models_config,
+    dialogue=dialogue,
+    ask_llm=ask_llm,
+    logger=logger
 )
 
 # Run the application with NiceGUI if started as a main script
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run(port=settings.app_port, show=True)
+    ui.run(port=app_config.app_port, show=True)

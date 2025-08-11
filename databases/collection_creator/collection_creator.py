@@ -1,4 +1,3 @@
-from dotenv import load_dotenv
 import os
 import sys
 
@@ -6,12 +5,11 @@ from qdrant_client.models import models
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from config.settings import get_settings
+from config.settings import AppConfig, ClientsConfig, EmbeddingModelsConfig
 
-load_dotenv()
-collection = os.getenv("CASH_COLLECTION")
-
-settings = get_settings()
+app_config=AppConfig()
+client_config = ClientsConfig()
+embedding_models_config = EmbeddingModelsConfig()
 
 
 class CreateCollection:
@@ -27,6 +25,8 @@ class CreateCollection:
 
     def __init__(
         self,
+        app_config: AppConfig,
+        client_config: ClientsConfig,
         collection_name: str,
         dense_embeddings: list[list[float]],
         late_embeddings: list[list[list[float]]] = None,
@@ -34,7 +34,8 @@ class CreateCollection:
         late: bool = False,
         recreation: bool = False
     ):
-        self.client = settings.client
+        self.app_config = app_config
+        self.client = client_config.qdrant_client
         self.collection_name = collection_name
         self.dense_embeddings = dense_embeddings
         self.late_embeddings = late_embeddings
@@ -83,18 +84,18 @@ class CreateCollection:
         using `MultiVectorConfig` with `MAX_SIM` comparator.
         """
         dense_config = {
-            settings.dense_vector_config: models.VectorParams(
+            app_config.dense_vector_config: models.VectorParams(
                 size=len(self.dense_embeddings[0]),
                 distance=models.Distance.COSINE,
             ),
         }
         sparse_config = {
-            settings.sparse_vector_config: models.SparseVectorParams(
+            app_config.sparse_vector_config: models.SparseVectorParams(
                 modifier=models.Modifier.IDF
             ),
         }
         late_config = {
-            settings.late_vector_config: models.VectorParams(
+            app_config.late_vector_config: models.VectorParams(
                 size=len(self.late_embeddings[0][0]),
                 distance=models.Distance.COSINE,
                 multivector_config=models.MultiVectorConfig(
@@ -122,10 +123,12 @@ class CreateCollection:
 
 if __name__ == "__main__":
     sample_text = "Hello World"
-    dense_embeddings = list(settings.dense_embedding_model.embed(sample_text))
-    late_embeddings = [list(vectors) for vectors in settings.late_interaction_embedding_model.embed(sample_text)]
+    dense_embeddings = list(embedding_models_config.dense.embed(sample_text))
+    late_embeddings = [list(vectors) for vectors in embedding_models_config.late.embed(sample_text)]
     CreateCollection(
-        collection_name=collection,
+        app_config=app_config,
+        client_config=client_config.qdrant_client,
+        collection_name=app_config.rag_collection,
         dense_embeddings=dense_embeddings,
         late_embeddings=late_embeddings,
     ).build_collection()

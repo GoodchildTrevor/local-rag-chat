@@ -13,23 +13,16 @@ from fitz import Document
 
 import pytesseract
 from PIL import Image
-
-import pymorphy2
 from razdel import sentenize, tokenize
-import tiktoken
-from stop_words import get_stop_words
 
-from config.database import (
+from config.consts.database import (
     PDF_SIZE_LIMIT,
     DPI
 )
-
-RU_STOPWORDS = set(get_stop_words("ru"))
-morph = pymorphy2.MorphAnalyzer()
-tokenizer = tiktoken.get_encoding("cl100k_base")
+from config.settings import NLPConfig 
 
 
-def chunker(text: str, max_tokens: int, overlap: int) -> list[dict]:
+def chunker(nlp_config: NLPConfig, text: str, max_tokens: int, overlap: int) -> list[dict]:
     """
     Custom chunker for documents
     :param text: raw text
@@ -44,9 +37,9 @@ def chunker(text: str, max_tokens: int, overlap: int) -> list[dict]:
         raw = s.text
         tokens = [
             t.text.lower() for t in tokenize(raw)
-            if t.text.isalpha() and t.text.lower() not in RU_STOPWORDS and len(t.text) > 1
+            if t.text.isalpha() and t.text.lower() not in nlp_config.stopwords and len(t.text) > 1
         ]
-        lemmas = [morph.parse(tok)[0].normal_form for tok in tokens]
+        lemmas = [nlp_config.morph.parse(tok)[0].normal_form for tok in tokens]
         lemmatized = " ".join(lemmas)
         processed.append({"raw": raw, "lemmas": lemmatized})
 
@@ -59,7 +52,7 @@ def chunker(text: str, max_tokens: int, overlap: int) -> list[dict]:
     while i < len(processed):
         sent = processed[i]
         lemma_sent = sent["lemmas"]
-        token_count = len(tokenizer.encode(lemma_sent, disallowed_special=()))
+        token_count = len(nlp_config.tokenizer.encode(lemma_sent, disallowed_special=()))
 
         if current_token_count + token_count > max_tokens:
             if current_chunk_raw:

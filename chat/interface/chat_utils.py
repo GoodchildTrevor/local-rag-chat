@@ -1,10 +1,9 @@
-from typing import Any
 from logging import Logger
 
 from functools import lru_cache
 from pymorphy2 import MorphAnalyzer
 
-from database.searcher.search import HybridHit
+from databases.searcher.search import HybridHit
 
 
 @lru_cache(maxsize=10000)
@@ -53,4 +52,16 @@ async def search_display(results: list[HybridHit], logger: Logger) -> tuple[set[
 
     docs, paths = extract_entities(results)
     display_docs = "Релевантные документы:\n" + "\n".join(paths)
+    return docs, display_docs
+
+
+async def answer_display(results: list[HybridHit]) -> tuple[set[str], str]:
+    """
+    Extracting texts for context in prompt and links for message
+    :param results: raw search results
+    :return: texts of docs and their links for chat message from cashed
+    """
+    result = results[0]
+    docs = result.payload.get("doc", "")
+    display_docs = result.payload.get("display_docs", "")
     return docs, display_docs

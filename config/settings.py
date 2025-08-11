@@ -7,18 +7,24 @@ from pydantic_settings import BaseSettings
 import pymorphy2
 from pymorphy2 import MorphAnalyzer
 from stop_words import get_stop_words
+import tiktoken
 
 from fastembed import TextEmbedding, LateInteractionTextEmbedding, SparseTextEmbedding
 from qdrant_client import QdrantClient
 from redis.asyncio import Redis
 
 from config.consts.database import (
+    BATCH_SIZE,
     DENSE_EMBEDDING_MODEL,
     SPARSE_EMBEDDING_MODEL,
     LATE_EMBEDDING_MODEL,
     DENSE_VECTOR_CONFIG,
     SPARSE_VECTOR_CONFIG,
     LATE_VECTOR_CONFIG,
+    CHUNK_SIZE,
+    OVERLAP,
+    FILE_FORMATS,
+    SCROLL_LIMIT,
 )
 from config.consts.searching import (
     TOP_K,
@@ -36,6 +42,7 @@ load_dotenv()
 
 RU_STOPWORDS = set(get_stop_words("ru"))
 morph = pymorphy2.MorphAnalyzer()
+tokenizer = tiktoken.get_encoding("cl100k_base")
 
 HOST = os.getenv("HOST")
 DB_PORT = os.getenv("DB_PORT")
@@ -70,6 +77,20 @@ class AppConfig(BaseSettings):
         extra = "ignore"
 
 
+class ChatRequest(BaseModel):
+    question: str
+    history: list[tuple[str, str]]
+
+
+class DBConfig:
+    def __init__(self):
+        self.batch_size: int = BATCH_SIZE
+        self.chunk_size: int = CHUNK_SIZE
+        self.overlap: int = OVERLAP
+        self.file_format: str = FILE_FORMATS
+        self.scroll_limit: int = SCROLL_LIMIT
+
+
 class ClientsConfig:
     def __init__(self, host=HOST, db_port=DB_PORT, redis_port=REDIS_PORT):
         self.qdrant_client: QdrantClient = QdrantClient(host, port=db_port)
@@ -87,8 +108,4 @@ class NLPConfig:
     def __init__(self):
         self.stopwords: set = RU_STOPWORDS
         self.morph: MorphAnalyzer = morph
-
-
-class ChatRequest(BaseModel):
-    question: str
-    history: list[tuple[str, str]]
+        self.tokenizer: tiktoken.Encoding = tokenizer 
