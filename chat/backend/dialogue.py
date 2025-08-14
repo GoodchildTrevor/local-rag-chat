@@ -1,5 +1,5 @@
 import asyncio
-from qdrant_client import QdrantClient, models
+from qdrant_client import models
 from razdel import tokenize
 from logging import Logger
 
