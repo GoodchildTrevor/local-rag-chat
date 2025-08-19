@@ -32,6 +32,7 @@ from config.consts.searching import (
     FAITHFULNESS_THRESHOLD,
     DENSE_LIMIT,
     SPARSE_LIMIT,
+    LATE_LIMIT,
     DENSE_THRESHOLD,
     SPARSE_THRESHOLD,
     THRESHOLD,
@@ -51,6 +52,7 @@ APP_PORT = os.getenv("APP_PORT")
 RAG_DOC_COLLECTION = os.getenv("RAG_DOC_COLLECTION")
 CASH_COLLECTION = os.getenv("CASH_COLLECTION")
 TIMEOUT = os.getenv('SESSION_TIMEOUT_MINUTES')
+RAG_SNAPSHOT_DIR = os.getenv("RAG_SNAPSHOT_DIR")
 
 
 class AppConfig(BaseSettings):
@@ -61,11 +63,9 @@ class AppConfig(BaseSettings):
     top_k: int = TOP_K
     relevancy_threshold: float = RELEVANCY_THRESHOLD
     faithfulness_threshold: float = FAITHFULNESS_THRESHOLD
-    dense_vector_config: str = DENSE_VECTOR_CONFIG
-    sparse_vector_config: str = SPARSE_VECTOR_CONFIG
-    late_vector_config: str = LATE_VECTOR_CONFIG
     dense_limit: int = DENSE_LIMIT
     sparse_limit: int = SPARSE_LIMIT
+    late_limit: int = LATE_LIMIT
     dense_threshold: float = DENSE_THRESHOLD
     sparse_threshold: float = SPARSE_THRESHOLD
     threshold: float = THRESHOLD
@@ -89,10 +89,12 @@ class DBConfig:
         self.overlap: int = OVERLAP
         self.file_format: str = FILE_FORMATS
         self.scroll_limit: int = SCROLL_LIMIT
+        self.rag_snapshot_dir: str = RAG_SNAPSHOT_DIR
 
 
 class ClientsConfig:
     def __init__(self, host=HOST, db_port=DB_PORT, redis_port=REDIS_PORT):
+        self.qdrant_url: str = f"http://{host}:{db_port}"
         self.qdrant_client: QdrantClient = QdrantClient(host, port=db_port)
         self.redis_client: Redis = Redis(host=host, port=redis_port, db=0, decode_responses=True)
 
@@ -102,6 +104,9 @@ class EmbeddingModelsConfig:
         self.dense: TextEmbedding = TextEmbedding(DENSE_EMBEDDING_MODEL)
         self.sparse: SparseTextEmbedding = SparseTextEmbedding(SPARSE_EMBEDDING_MODEL)
         self.late: LateInteractionTextEmbedding = LateInteractionTextEmbedding(LATE_EMBEDDING_MODEL)
+        self.dense_vector_config: str = DENSE_VECTOR_CONFIG
+        self.sparse_vector_config: str = SPARSE_VECTOR_CONFIG
+        self.late_vector_config: str = LATE_VECTOR_CONFIG
 
 
 class NLPConfig:

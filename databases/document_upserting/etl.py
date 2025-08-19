@@ -2,6 +2,11 @@ import logging
 from more_itertools import chunked
 from pathlib import Path
 
+import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from databases.document_upserting.data_processing import (
     chunker,
     extract_text_metadata,
@@ -63,7 +68,7 @@ for file_path in paths_for_etl:
             "name": file_path.name,
             "metadata": metadata,
             "file_path": str(file_path),
-        },
+        }
 
         total_points = len(raw_texts)
         logger.info(f"Preparing to upsert {total_points} chunks from {file_path}")
@@ -71,9 +76,11 @@ for file_path in paths_for_etl:
         upsert_data(
             client=client_config.qdrant_client,
             collection_name=app_config.rag_collection,
+            embeding_model_config=embeding_model_config,
             dense_embeddings=dense_embeddings,
             bm25_embeddings=bm25_embeddings,
-            late_interaction_embeddings=late_interaction_embeddings,
+            late_interaction_embeddings=None,
+            payload=payload,
             documents=raw_texts,
         )
 

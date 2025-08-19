@@ -10,15 +10,15 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from qdrant_client.http.exceptions import UnexpectedResponse
 
-from config.settings import get_settings
+from config.settings import EmbeddingModelsConfig
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 
 def upsert_data(
     client: QdrantClient,
     collection_name: str,
+    embeding_model_config: EmbeddingModelsConfig,
     dense_embeddings: list[list[float]],
     bm25_embeddings: list[Any] | None,  # SparseVectorObject
     late_interaction_embeddings: list[list[float]] | None,
@@ -39,11 +39,11 @@ def upsert_data(
     """
     embeddings_map = {}
     if dense_embeddings is not None:
-        embeddings_map[settings.dense_vector_config] = dense_embeddings
+        embeddings_map[embeding_model_config.dense_vector_config] = dense_embeddings
     if bm25_embeddings is not None:
-        embeddings_map[settings.sparse_vector_config] = bm25_embeddings
+        embeddings_map[embeding_model_config.sparse_vector_config] = bm25_embeddings
     if late_interaction_embeddings is not None:
-        embeddings_map[settings.late_vector_config] = late_interaction_embeddings
+        embeddings_map[embeding_model_config.late_vector_config] = late_interaction_embeddings
 
     if not embeddings_map:
         logger.warning("No embeddings provided. Skipping upsert.")
@@ -53,7 +53,7 @@ def upsert_data(
         for i, doc in enumerate(documents):
             vector_dict = {}
             for name, embeds in embeddings_map.items():
-                if name == settings.sparse_vector_config:
+                if name == embeding_model_config.sparse_vector_config:
                     vector_dict[name] = embeds[i].as_object()
                 else:
                     vector_dict[name] = embeds[i]

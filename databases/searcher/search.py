@@ -6,16 +6,7 @@ from typing import Optional
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.models import SparseVector
 
-from config.consts.database import (
-    DENSE_VECTOR_CONFIG,
-    SPARSE_VECTOR_CONFIG,
-    LATE_VECTOR_CONFIG,
-)
-from config.consts.searching import (
-    DENSE_LIMIT,
-    SPARSE_LIMIT,
-    LATE_LIMIT,
-)
+from config.settings import AppConfig, EmbeddingModelsConfig
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +69,8 @@ def run_query(
 
 
 def hybrid_search_engine(
+        app_config: AppConfig,
+        embedding_models_config: EmbeddingModelsConfig,
         client: QdrantClient,
         collection: str,
         dense_vectors: Optional[list[float]] = None,
@@ -105,30 +98,32 @@ def hybrid_search_engine(
     if dense_vectors:
         prefetch.append(models.Prefetch(
             query=dense_vectors,
-            using=DENSE_VECTOR_CONFIG,
-            limit=DENSE_LIMIT,
+            using=embedding_models_config.dense_vector_config,
+            limit=app_config.dense_limit,
         ))
 
     if sparse_vectors:
         prefetch.append(models.Prefetch(
             query=sparse_vectors,
-            using=SPARSE_VECTOR_CONFIG,
-            limit=SPARSE_LIMIT,
+            using=embedding_models_config.sparse_vector_config,
+            limit=app_config.sparse_limit,
         ))
 
     response = client.query_points(
         collection_name=collection,
         prefetch=prefetch,
         query=late_vectors,
-        using=LATE_VECTOR_CONFIG,
+        using=embedding_models_config.late_vector_config,
         with_payload=True,
-        limit=LATE_LIMIT,
+        limit=app_config.late_limit,
     )
 
     return response.points
 
 
 def combined_dense_sparse_scores(
+        app_config: AppConfig,
+        embedding_models_config: EmbeddingModelsConfig,
         client: QdrantClient,
         collection: str,
         top_k: int,
@@ -160,12 +155,16 @@ def combined_dense_sparse_scores(
         raise ValueError("At least one of dense or sparse vectors must be provided")
 
     dense_hits = [
-        hit for hit in run_query(client, collection, dense_vectors, DENSE_VECTOR_CONFIG, DENSE_LIMIT)
+        hit for hit in run_query(
+            client, collection, dense_vectors, embedding_models_config.dense_vector_config, app_config.dense_limit
+        )
         if hit.score >= dense_threshold
     ]
 
     sparse_hits = [
-        hit for hit in run_query(client, collection, sparse_vectors, SPARSE_VECTOR_CONFIG, SPARSE_LIMIT)
+        hit for hit in run_query(
+            client, collection, sparse_vectors, embedding_models_config.sparse_vector_config, app_config.sparse_limit
+        )
         if hit.score >= sparse_threshold
     ]
 
@@ -231,13 +230,14 @@ def combined_dense_sparse_scores(
 
 
 def dense_search(
+        embedding_models_config: EmbeddingModelsConfig,
         client: QdrantClient,
         collection: str,
         dense_vectors: list[float],
         cosine_similarity_threshold: float
 ) -> list[HybridHit | None]:
 
-    dense_hits = run_query(client, collection, dense_vectors, DENSE_VECTOR_CONFIG, 5)
+    dense_hits = run_query(client, collection, dense_vectors, embedding_models_config.dense_vector_config, 5)
     
     if not dense_hits:
         logger.warning("No relevant cached answers found")

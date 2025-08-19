@@ -25,22 +25,20 @@ class CreateCollection:
 
     def __init__(
         self,
-        app_config: AppConfig,
         client_config: ClientsConfig,
         collection_name: str,
+        embedding_models_config: EmbeddingModelsConfig,
         dense_embeddings: list[list[float]],
         late_embeddings: list[list[list[float]]] = None,
         sparse: bool = True,
-        late: bool = False,
         recreation: bool = False
     ):
-        self.app_config = app_config
         self.client = client_config.qdrant_client
         self.collection_name = collection_name
+        self.embedding_models_config = embedding_models_config
         self.dense_embeddings = dense_embeddings
         self.late_embeddings = late_embeddings
         self.sparse = sparse
-        self.late = late
         self.recreation = recreation
 
     def creator(self, configs: dict) -> None:
@@ -84,35 +82,36 @@ class CreateCollection:
         using `MultiVectorConfig` with `MAX_SIM` comparator.
         """
         dense_config = {
-            app_config.dense_vector_config: models.VectorParams(
+            self.embedding_models_config.dense_vector_config: models.VectorParams(
                 size=len(self.dense_embeddings[0]),
                 distance=models.Distance.COSINE,
-            ),
-        }
-        sparse_config = {
-            app_config.sparse_vector_config: models.SparseVectorParams(
-                modifier=models.Modifier.IDF
-            ),
-        }
-        late_config = {
-            app_config.late_vector_config: models.VectorParams(
-                size=len(self.late_embeddings[0][0]),
-                distance=models.Distance.COSINE,
-                multivector_config=models.MultiVectorConfig(
-                    comparator=models.MultiVectorComparator.MAX_SIM,
-                ),
             )
         }
 
-        if self.late:
-            vectors_config = {**dense_config, **late_config}
-        else:
-            vectors_config = dense_config
+        vectors_config = dense_config
+        
+        if self.late_embeddings is not None:
+            late_config = {
+                self.embedding_models_config.late_vector_config: models.VectorParams(
+                    size=len(self.late_embeddings[0][0]),
+                    distance=models.Distance.COSINE,
+                    multivector_config=models.MultiVectorConfig(
+                        comparator=models.MultiVectorComparator.MAX_SIM,
+                    ),
+                )
+            }
+            vectors_config.update(late_config)
         
         configs = {
             "vectors_config": vectors_config,
         }
+
         if self.sparse:
+            sparse_config = {
+            embedding_models_config.sparse_vector_config: models.SparseVectorParams(
+                modifier=models.Modifier.IDF
+            ),
+            }     
             configs["sparse_vectors_config"] = sparse_config
 
         if self.recreation:
@@ -126,9 +125,10 @@ if __name__ == "__main__":
     dense_embeddings = list(embedding_models_config.dense.embed(sample_text))
     late_embeddings = [list(vectors) for vectors in embedding_models_config.late.embed(sample_text)]
     CreateCollection(
-        app_config=app_config,
-        client_config=client_config.qdrant_client,
+        client_config=client_config,
         collection_name=app_config.rag_collection,
         dense_embeddings=dense_embeddings,
-        late_embeddings=late_embeddings,
+        embedding_models_config=embedding_models_config,
+        late_embeddings=None,
+        recreation=True
     ).build_collection()
