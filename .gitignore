@@ -103,3 +103,6 @@ cookiecutter-pypackage-env/
 
 # IDE settings
 .vscode/
+
+# DB stuff
+*.snapshot
