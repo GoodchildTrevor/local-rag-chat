@@ -66,7 +66,6 @@ def create_chat_page(
         asyncio.create_task(auto_flush())
 
         with ui.column().classes("flex-1 h-screen w-[80%] mx-auto p-4"):
-            logger.info(header)
             ui.label(header).classes("text-3xl font-bold mb-6 text-center text-blue-600")
             history_ui = ui.column().classes("flex-1 flex-grow w-[100%] overflow-y-auto p-4 bg-gray-50 rounded-lg mb-4")
 
@@ -88,7 +87,10 @@ def create_chat_page(
                         with ui.row().classes("items-start gap-3 mb-4 w-full"):
                             ui.avatar("smart_toy", color="green").classes("shrink-0")
                             with ui.column().classes("flex-1"):
-                                docs_md = ui.markdown(DOC_STANDBY).classes("bg-yellow-100 p-3 rounded-lg max-w-prose mb-2")
+                                if prefix=="chat":
+                                    docs_md = ui.markdown(DOC_STANDBY).classes("bg-yellow-100 p-3 rounded-lg max-w-prose mb-2")
+                                else:
+                                    docs_md = ""
                                 answer_md = ui.markdown(MODEL_STANDBY).classes("bg-green-100 p-3 rounded-lg max-w-prose")
                         return docs_md, answer_md
 
@@ -115,14 +117,14 @@ def create_chat_page(
                 # The 'with' statement here correctly enters the UI container's slot for this task
                 with history_ui:
                     try:
+                        priority_results=False
+                        docs = list()
+                        results = list()
                         logger.info(f"Processing user message: {msg}")
                         # Update initial placeholder messages
                         if prefix == "chat":
                             docs_md.content = DOC_STANDBY
                             answer_md.content = ""
-                            priority_results=False
-                            docs = list()
-                            results = list()
 
                             try:
                                 # Perform search and check cache concurrently
@@ -158,8 +160,11 @@ def create_chat_page(
                                 answer_md.style("display: none")
                                 return
 
-                        # Update LLM placeholder
-                        answer_md.content = MODEL_STANDBY
+                            # Update LLM placeholder
+                            answer_md.content = MODEL_STANDBY
+                        
+                        else:
+                            pass
 
                         try:
                             if priority_results:
