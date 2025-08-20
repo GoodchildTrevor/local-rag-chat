@@ -12,16 +12,16 @@ class AnswerCash:
     def __init__(
         self,
         logger: Logger, 
-        client_config: ClientsConfig,
+        clients_config: ClientsConfig,
         embedding_model_config: EmbeddingModelsConfig,
         collection_name: str,
         session_id: str,
         timeout_minutes: int
     ):
         self.logger = logger
-        self.client = client_config.qdrant_client
-        self.redis = client_config.redis_client
-        self.dense_embedding_model = embedding_model_config.dense_embedding_model
+        self.client = clients_config.qdrant_client
+        self.redis = clients_config.redis_client
+        self.dense_embedding_model = embedding_model_config.dense
         self.collection_name = collection_name
         self.session_id = session_id
         self.timeout_minutes = timeout_minutes

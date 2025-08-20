@@ -119,6 +119,7 @@ def setup_ui(
                                 normalized_query=normalized_msg
                             )
                             best_answers_task = dialogue.get_cashed_answers(
+                                embedding_models_config=embedding_models_config,
                                 collection=app_config.cash_collection, 
                                 normalized_query=normalized_msg
                             )

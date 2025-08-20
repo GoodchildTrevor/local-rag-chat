@@ -32,6 +32,6 @@ class FixedOllama(Ollama):
 # Model initialization
 llm = FixedOllama(
     model="qwen3:4b",
-    request_timeout=60.0,
+    request_timeout=180.0,
     max_tokens=240,
 )

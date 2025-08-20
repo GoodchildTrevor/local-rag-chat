@@ -19,15 +19,15 @@ class Dialogue:
     def __init__(
         self,
         app_config: AppConfig,
-        client_config: ClientsConfig,
-        embedding_model_config: EmbeddingModelsConfig,
+        clients_config: ClientsConfig,
+        embedding_models_config: EmbeddingModelsConfig,
         nlp_config: NLPConfig,
         logger: Logger,
     ):
+        self.app_config=app_config
+        self.embedding_models_config=embedding_models_config
         self.logger = logger
-        self.client = client_config.qdrant_client
-        self.dense_embedding_model = embedding_model_config.dense
-        self.bm25_embedding_model = embedding_model_config.sparse
+        self.client = clients_config.qdrant_client
         self.dense_threshold = app_config.dense_threshold
         self.sparse_threshold = app_config.sparse_threshold
         self.threshold = app_config.threshold
@@ -61,10 +61,10 @@ class Dialogue:
         :return: dense and sparse vectors
         """
         dense_future = asyncio.to_thread(
-            lambda: next(self.dense_embedding_model.query_embed(normalized_query))
+            lambda: next(self.embedding_models_config.dense.query_embed(normalized_query))
         )
         sparse_future = asyncio.to_thread(
-            lambda: next(self.bm25_embedding_model.query_embed(normalized_query))
+            lambda: next(self.embedding_models_config.sparse.query_embed(normalized_query))
         )
 
         dense_vector, sparse_raw = await asyncio.gather(dense_future, sparse_future)
@@ -89,6 +89,8 @@ class Dialogue:
         """
         dense_vector, sparse_vector = await self._vectorize_query(normalized_query)
         results = combined_dense_sparse_scores(
+            app_config=self.app_config,
+            embedding_models_config=self.embedding_models_config,
             client=self.client,
             collection=collection,
             dense_vectors=dense_vector,
@@ -120,6 +122,7 @@ class Dialogue:
     
     async def get_cashed_answers(
             self, 
+            embedding_models_config,
             collection:str, 
             normalized_query: str
     ) -> list[HybridHit]:
@@ -133,6 +136,7 @@ class Dialogue:
         """
         dense_vector, _ = await self._vectorize_query(normalized_query)
         return dense_search(
+            embedding_models_config=embedding_models_config,
             client=self.client,
             collection=collection,
             dense_vectors=dense_vector,
