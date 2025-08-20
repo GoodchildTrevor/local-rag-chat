@@ -45,26 +45,19 @@ dialogue = Dialogue(
 app: FastAPI = FastAPI()
 
 # Set up NiceGUI UI routes and layout
-create_chat_page(
-    tab=RAGTabConfig(),
-    app=app,
-    app_config=app_config,
-    clients_config=clients_config,
-    embedding_models_config=embedding_models_config,
-    dialogue=dialogue,
-    ask_llm=ask_llm,
-    logger=logger
-)
-create_chat_page(
-    tab=CodeAssistantTabConfig(),
-    app=app,
-    app_config=app_config,
-    clients_config=clients_config,
-    embedding_models_config=embedding_models_config,
-    dialogue=dialogue,
-    ask_llm=ask_llm,
-    logger=logger
-)
+tabs = [RAGTabConfig(), CodeAssistantTabConfig(),]
+
+for tab in tabs:
+    create_chat_page(
+        tab=tab,
+        app=app,
+        app_config=app_config,
+        clients_config=clients_config,
+        embedding_models_config=embedding_models_config,
+        dialogue=dialogue,
+        ask_llm=ask_llm,
+        logger=logger
+    )
 
 # Run the application with NiceGUI if started as a main script
 if __name__ in {"__main__", "__mp_main__"}:
