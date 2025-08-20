@@ -8,7 +8,7 @@ more-itertools==10.3.0
 nicegui==2.20.0
 pillow==11.1.0
 pymupdf==1.26.1
-pymorphy2==0.9.1
+pymorphy3==2.0.4
 pytesseract==0.3.13
 ragas==0.2.15
 razdel==0.5.0

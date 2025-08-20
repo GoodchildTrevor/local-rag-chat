@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
-import pymorphy2
-from pymorphy2 import MorphAnalyzer
+import pymorphy3
+from pymorphy3 import MorphAnalyzer
 from stop_words import get_stop_words
 import tiktoken
 
@@ -52,7 +52,7 @@ from llm.ollama_configs import (
 load_dotenv()
 
 RU_STOPWORDS = set(get_stop_words("ru"))
-morph = pymorphy2.MorphAnalyzer()
+morph = pymorphy3.MorphAnalyzer()
 tokenizer = tiktoken.get_encoding("cl100k_base")
 
 HOST = os.getenv("HOST")
