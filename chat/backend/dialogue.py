@@ -121,7 +121,7 @@ class Dialogue:
         return results
     
     async def get_cashed_answers(
-            self, 
+            self,
             embedding_models_config,
             collection:str, 
             normalized_query: str

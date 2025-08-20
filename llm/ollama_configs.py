@@ -29,9 +29,15 @@ class FixedOllama(Ollama):
         return super().chat(messages, **kwargs)
 
 
-# Model initialization
-llm = FixedOllama(
-    model="qwen3:4b",
+# Models initialization
+chat_llm = FixedOllama(
+    model="deepseek-r1:8b",
     request_timeout=180.0,
     max_tokens=240,
+)
+
+code_assistant_llm = FixedOllama(
+    model="qwen2.5-coder:7b",
+    request_timeout=180.0,
+    max_tokens=360,
 )

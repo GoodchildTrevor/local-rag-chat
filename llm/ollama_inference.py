@@ -1,15 +1,16 @@
 import asyncio
 import re
 
-from config.consts.prompts import SYSTEM_PROMPT
 from llm.ollama_configs import (
-    llm,
-    PROMPT_TEMPLATE
+    PROMPT_TEMPLATE,
+    FixedOllama,
 )
 
 
 async def ask_llm(
     logger,
+    llm: FixedOllama,
+    system_prompt: str,
     query: str,
     context: list[str],
     history: list[tuple[str, str]],
@@ -29,7 +30,7 @@ async def ask_llm(
     history_text = "\n".join(f"Юзер: {u} | Бот: {b}" for u, b in history) if history else "—"
     # Format the full prompt using system instructions, context, history, and the user query
     prompt = PROMPT_TEMPLATE.format(
-        system=SYSTEM_PROMPT,
+        system=system_prompt,
         context=context_text,
         history=history_text,
         query=query,

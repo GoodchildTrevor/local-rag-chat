@@ -3,13 +3,14 @@ import logging
 from fastapi import FastAPI
 from nicegui import ui
 
-from chat.interface.chat_ui import setup_ui
+from chat.interface.chat_ui import create_chat_page
 from config.settings import (
     AppConfig,
-    ChatRequest,
     ClientsConfig,
     EmbeddingModelsConfig,
     NLPConfig,
+    RAGTabConfig,
+    CodeAssistantTabConfig
 )
 from llm.ollama_inference import ask_llm
 from chat.backend.dialogue import Dialogue
@@ -43,23 +44,19 @@ dialogue = Dialogue(
 # Initialize FastAPI backend
 app: FastAPI = FastAPI()
 
-
-@app.get("/")
-def root():
-    return {"message": "RAG Chatbot is running with NiceGUI frontend."}
-
-
-@app.post("/api/chat")
-async def chat_endpoint(req: ChatRequest):
-    """
-    API endpoint to handle chat requests from the frontend.
-    :param req: question and history payload
-    :return: generated model response
-    """
-    return await ask_llm(req.question, req.history)
-
 # Set up NiceGUI UI routes and layout
-setup_ui(
+create_chat_page(
+    tab=RAGTabConfig(),
+    app=app,
+    app_config=app_config,
+    clients_config=clients_config,
+    embedding_models_config=embedding_models_config,
+    dialogue=dialogue,
+    ask_llm=ask_llm,
+    logger=logger
+)
+create_chat_page(
+    tab=CodeAssistantTabConfig(),
     app=app,
     app_config=app_config,
     clients_config=clients_config,

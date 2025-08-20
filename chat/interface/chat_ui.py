@@ -1,14 +1,17 @@
 import asyncio
 from logging import Logger
+from typing import Callable
 import uuid
 
 from nicegui import ui
 from fastapi import FastAPI
 
 from config.consts.chat_messages import (
-    ENTER, GREETINGS, MODEL_RESPOND, DOC_STANDBY, MODEL_STANDBY,
-    DOC_BUG, MODEL_BUG, HEADER, THANKS, STARS
+    ENTER, GREETINGS, MODEL_RESPOND, 
+    DOC_STANDBY, MODEL_STANDBY,
+    DOC_BUG, MODEL_BUG, THANKS, STARS
 )
+from config.consts.tab_config import TabConfig
 from config.settings import (
     AppConfig,
     ClientsConfig,
@@ -22,24 +25,29 @@ from chat.backend.dialogue import Dialogue
 from databases.cashing.cashing import AnswerCash
 
 
-def setup_ui(
+def create_chat_page(
+        tab: TabConfig,
         app: FastAPI,
         app_config: AppConfig,
         clients_config: ClientsConfig,
         embedding_models_config: EmbeddingModelsConfig,
         dialogue: Dialogue,
-        ask_llm,
+        ask_llm: Callable,
         logger: Logger
 ):
     """Setup NiceGUI interface for the RAG chatbot"""
+    prefix = tab.prefix
+    header = tab.header
+    system_prompt = tab.system_prompt
+    llm = tab.llm
 
     sessions: dict[str, AnswerCash] = {}
 
-    @ui.page("/")
+    @ui.page(f"/{prefix}")
     def chat_page() -> None:
         """Main page for chat"""
         history: list[tuple[str, str]] = []
-        session_id = str(uuid.uuid4())
+        session_id = f"{prefix}_{str(uuid.uuid4())}"
         answer_cash = AnswerCash(
             logger=logger,
             clients_config = clients_config,
@@ -58,7 +66,8 @@ def setup_ui(
         asyncio.create_task(auto_flush())
 
         with ui.column().classes("flex-1 h-screen w-[80%] mx-auto p-4"):
-            ui.html(f"<h1 class='text-3xl font-bold mb-6 text-center text-blue-600'>{HEADER}</h1>")
+            logger.info(header)
+            ui.label(header).classes("text-3xl font-bold mb-6 text-center text-blue-600")
             history_ui = ui.column().classes("flex-1 flex-grow w-[100%] overflow-y-auto p-4 bg-gray-50 rounded-lg mb-4")
 
             def render_message(text: str, *, sender: str = "", system: bool = False) -> tuple:
@@ -108,42 +117,46 @@ def setup_ui(
                     try:
                         logger.info(f"Processing user message: {msg}")
                         # Update initial placeholder messages
-                        docs_md.content = DOC_STANDBY
-                        answer_md.content = ""
+                        if prefix == "chat":
+                            docs_md.content = DOC_STANDBY
+                            answer_md.content = ""
+                            priority_results=False
+                            docs = list()
+                            results = list()
 
-                        try:
-                            # Perform search and check cache concurrently
-                            normalized_msg = dialogue.processing_query(msg)
-                            search_results_task = dialogue.get_searching_results(
-                                collection=app_config.rag_collection, 
-                                normalized_query=normalized_msg
-                            )
-                            best_answers_task = dialogue.get_cashed_answers(
-                                embedding_models_config=embedding_models_config,
-                                collection=app_config.cash_collection, 
-                                normalized_query=normalized_msg
-                            )
-                            results, priority_results = await asyncio.gather(search_results_task, best_answers_task)
+                            try:
+                                # Perform search and check cache concurrently
+                                normalized_msg = dialogue.processing_query(msg)
+                                search_results_task = dialogue.get_searching_results(
+                                    collection=app_config.rag_collection, 
+                                    normalized_query=normalized_msg
+                                )
+                                best_answers_task = dialogue.get_cashed_answers(
+                                    embedding_models_config=embedding_models_config,
+                                    collection=app_config.cash_collection, 
+                                    normalized_query=normalized_msg
+                                )
+                                results, priority_results = await asyncio.gather(search_results_task, best_answers_task)
 
-                            if priority_results:
-                                logger.debug("Using cached answers")
-                                results_to_use = priority_results
-                                docs, display_docs = await answer_display(results_to_use)
-                                question_id = priority_results[0].payload.get("question_id")
-                            else:
-                                logger.debug("Using new search results")
-                                results_to_use = results
-                                docs, display_docs = await search_display(results_to_use, logger)
-                                question_id = None
-                            
-                            # Update the UI with search results
-                            docs_md.content = display_docs
+                                if priority_results:
+                                    logger.debug("Using cached answers")
+                                    results_to_use = priority_results
+                                    docs, display_docs = await answer_display(results_to_use)
+                                    question_id = priority_results[0].payload.get("question_id")
+                                else:
+                                    logger.debug("Using new search results")
+                                    results_to_use = results
+                                    docs, display_docs = await search_display(results_to_use, logger)
+                                    question_id = None
+                                
+                                # Update the UI with search results
+                                docs_md.content = display_docs
 
-                        except Exception as e_search:
-                            logger.error(f"Search error: {str(e_search)}", exc_info=True)
-                            docs_md.content = f"**Ошибка поиска:** {str(e_search)}<br>{DOC_BUG}"
-                            answer_md.style("display: none")
-                            return
+                            except Exception as e_search:
+                                logger.error(f"Search error: {str(e_search)}", exc_info=True)
+                                docs_md.content = f"**Ошибка поиска:** {str(e_search)}<br>{DOC_BUG}"
+                                answer_md.style("display: none")
+                                return
 
                         # Update LLM placeholder
                         answer_md.content = MODEL_STANDBY
@@ -152,7 +165,15 @@ def setup_ui(
                             if priority_results:
                                 answer = priority_results[0].payload.get("document")
                             else: 
-                                answer = await ask_llm(logger, msg, docs, history, results)
+                                answer = await ask_llm(
+                                    logger=logger,
+                                    llm=llm,
+                                    system_prompt=system_prompt, 
+                                    query=msg, 
+                                    context=docs,
+                                    history=history, 
+                                    results=results,
+                                )
                             
                             # Update the UI with the final answer
                             answer_md.content = f"{MODEL_RESPOND} {answer}"
@@ -231,18 +252,23 @@ def setup_ui(
 
             render_message(GREETINGS, system=True)
 
-    @ui.page("/chat")
-    def chat_redirect():
-        ui.navigate.to("/")
+
+    @ui.page("/")
+    def main_menu():
+        ui.label("Главное меню").classes("text-2xl font-bold")
+        with ui.column().classes("gap-4 mt-4"):
+            ui.button("Чат-бот", on_click=lambda: ui.navigate.to("/chat")).classes("w-48")
+            ui.button("Код-ассистент", on_click=lambda: ui.navigate.to("/assistant")).classes("w-48")
+
 
     @ui.page("/api")
     def api_info():
         ui.html("<h1>API Information</h1>")
         ui.markdown("""
         ### Available Endpoints:
-        - GET / - Main chat interface
+        - GET / - Main menu interface
         - POST /api/chat - Chat API endpoint
-        - GET /chat - Redirects to main page
+        - GET /chat - QA chat interface
         """)
 
     return app

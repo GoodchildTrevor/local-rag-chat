@@ -38,6 +38,16 @@ from config.consts.searching import (
     THRESHOLD,
     COSINE_SIMILARITY_THRESHOLD,
 )
+from config.consts.prompts import (
+    CODER_SYSTEM_PROMPT,
+    RAG_SYSTEM_PROMPT,
+)
+from config.consts.tab_config import TabConfig
+from llm.ollama_configs import (
+    chat_llm,
+    code_assistant_llm,
+    FixedOllama
+)
 
 load_dotenv()
 
@@ -114,3 +124,19 @@ class NLPConfig:
         self.stopwords: set = RU_STOPWORDS
         self.morph: MorphAnalyzer = morph
         self.tokenizer: tiktoken.Encoding = tokenizer 
+
+
+class RAGTabConfig(TabConfig):
+    prefix: str = "chat"
+    header: str = "Чат-бот"
+    system_prompt: str = RAG_SYSTEM_PROMPT
+    markdown: str = ""
+    llm: FixedOllama = chat_llm
+
+
+class CodeAssistantTabConfig(TabConfig):
+    prefix: str = "assistant"
+    header: str = "Код ассистент"
+    system_prompt: str = CODER_SYSTEM_PROMPT
+    markdown: str = ""
+    llm: FixedOllama = code_assistant_llm
