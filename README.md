@@ -12,6 +12,9 @@ This project implements a lightweight **Retrieval-Augmented Generation (RAG)** p
 
 ## 📦 Required Tools
 
+### Docker
+[Installation guide](https://docs.docker.com/engine/install/)
+
 ### Qdrant
 [Installation guide](https://qdrant.tech/documentation/guides/installation/)
 
@@ -35,15 +38,18 @@ SESSION_TIMEOUT_MINUTES=  # length of session
 ```
 
 ```bash
-# 1. Install dependencies
+# 1. Run docker images
+docker compose pull
+docker compose up -d
+# 2. Install dependencies
 pip install -r requirements.txt
-# 2. Create your document collection
+# 3. Create your document collection
 python database/collection_creator/collection_creator.py
-# 3. Upsert your documents
+# 4. Upsert your documents
 python database//document_upserting/etl.py
-# 4. Run the API server
+# 5. Run the API server
 python main.py
-# 5. Open the GUI
+# 6. Open the GUI
 # http://localhost:{APP_PORT}
 ```
 
