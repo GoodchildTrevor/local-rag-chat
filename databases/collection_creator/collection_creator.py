@@ -130,5 +130,4 @@ if __name__ == "__main__":
         dense_embeddings=dense_embeddings,
         embedding_models_config=embedding_models_config,
         late_embeddings=None,
-        recreation=True
     ).build_collection()
