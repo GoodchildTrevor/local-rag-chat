@@ -46,7 +46,7 @@ pip install -r requirements.txt
 # 3. Create your document collection
 python database/collection_creator/collection_creator.py
 # 4. Upsert your documents
-python database//document_upserting/etl.py
+python database/document_upserting/etl.py
 # 5. Run the API server
 python main.py
 # 6. Open the GUI
