@@ -32,12 +32,12 @@ class FixedOllama(Ollama):
 # Models initialization
 chat_llm = FixedOllama(
     model="deepseek-r1:8b",
-    request_timeout=180.0,
-    max_tokens=240,
+    request_timeout=60.0,
+    max_tokens=200,
 )
 
 code_assistant_llm = FixedOllama(
     model="qwen2.5-coder:7b",
-    request_timeout=180.0,
-    max_tokens=360,
+    request_timeout=60.0,
+    max_tokens=300,
 )
