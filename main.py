@@ -3,7 +3,8 @@ import logging
 from fastapi import FastAPI
 from nicegui import ui
 
-from chat.interface.chat_ui import create_chat_page
+from chat.interface.main_tabs import create_main_menu
+from chat.interface.chat_constructor import create_chat_page
 from config.settings import (
     AppConfig,
     ClientsConfig,
@@ -47,6 +48,7 @@ app: FastAPI = FastAPI()
 # Set up NiceGUI UI routes and layout
 tabs = [RAGTabConfig(), CodeAssistantTabConfig(),]
 
+create_main_menu(tabs)
 for tab in tabs:
     create_chat_page(
         tab=tab,
