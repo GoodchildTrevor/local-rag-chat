@@ -4,7 +4,7 @@ services:
   qdrant:
     image: qdrant/qdrant
     ports:
-      - "6333:6333"
+      - "{DB_PORT}:6333"
     volumes:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped 
@@ -12,7 +12,7 @@ services:
   redis:
     image: redis:alpine
     ports:
-      - "6379:6379"
+      - "{REDIS_PORT}:6379"
     restart: unless-stopped 
     volumes:
       - redis_data:/data  
