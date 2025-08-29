@@ -51,7 +51,7 @@ async def search_display(results: list[HybridHit], logger: Logger) -> tuple[set[
         raise ValueError("No relevant documents")
 
     docs, paths = extract_entities(results)
-    display_docs = "Релевантные документы:\n" + "\n".join(paths)
+    display_docs = "Релевантные документы:\n\n" + "\n\n".join(paths)
     return docs, display_docs
 
 
