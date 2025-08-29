@@ -6,7 +6,7 @@ SCROLL_LIMIT = 1024
 BATCH_SIZE = 64
 # PDF reader
 PDF_SIZE_LIMIT = 50
-DPI = 400
+DPI = 300
 # Embeddings
 DENSE_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DENSE_VECTOR_CONFIG = "all-MiniLM-L6-v2"
