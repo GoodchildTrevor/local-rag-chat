@@ -17,12 +17,12 @@ from razdel import sentenize, tokenize
 
 from config.consts.database import (
     PDF_SIZE_LIMIT,
-    DPI
+    DPI,
 )
 from config.settings import NLPConfig 
 
 
-def chunker(nlp_config: NLPConfig, text: str, max_tokens: int, overlap: int) -> list[dict]:
+def chunker(logger: Logger, nlp_config: NLPConfig, text: str, max_tokens: int, overlap: int) -> list[dict]:
     """
     Custom chunker for documents
     :param text: raw text
@@ -42,7 +42,7 @@ def chunker(nlp_config: NLPConfig, text: str, max_tokens: int, overlap: int) -> 
         lemmas = [nlp_config.morph.parse(tok)[0].normal_form for tok in tokens]
         lemmatized = " ".join(lemmas)
         processed.append({"raw": raw, "lemmas": lemmatized})
-
+    logger.info("Tokenize and lemmatize finished")
     chunks = []
     current_chunk_raw = []
     current_chunk_lemmas = []
@@ -50,31 +50,41 @@ def chunker(nlp_config: NLPConfig, text: str, max_tokens: int, overlap: int) -> 
     i = 0
 
     while i < len(processed):
-        sent = processed[i]
-        lemma_sent = sent["lemmas"]
-        token_count = len(nlp_config.tokenizer.encode(lemma_sent, disallowed_special=()))
-
-        if current_token_count + token_count > max_tokens:
-            if current_chunk_raw:
-                chunks.append({
-                    "raw": " ".join(current_chunk_raw),
-                    "lemmas": " ".join(current_chunk_lemmas),
-                })
-            i = max(0, i - overlap)
-            current_chunk_raw = []
-            current_chunk_lemmas = []
-            current_token_count = 0
-        else:
+    # Собираем чанк
+        current_chunk_raw = []
+        current_chunk_lemmas = []
+        current_token_count = 0
+    
+        # Добавляем overlap из предыдущего чанка
+        if chunks and overlap > 0:
+            last_chunk_lemmas = chunks[-1]["lemmas"].split()
+            overlap_lemmas = last_chunk_lemmas[-overlap*2:]  # Примерно overlap предложений
+            overlap_raw = chunks[-1]["raw"].split()[-overlap*2:]
+        
+            current_chunk_lemmas.extend(overlap_lemmas)
+            current_chunk_raw.extend(overlap_raw)
+            current_token_count = sum(len(nlp_config.tokenizer.encode(lemma, disallowed_special=()))
+                                for lemma in overlap_lemmas)
+    
+        # Заполняем чанк
+        while i < len(processed) and current_token_count <= max_tokens:
+            sent = processed[i]
+            lemma_sent = sent["lemmas"]
+            token_count = len(nlp_config.tokenizer.encode(lemma_sent, disallowed_special=()))
+        
+            if current_token_count + token_count > max_tokens:
+                break
+            
             current_chunk_raw.append(sent["raw"])
             current_chunk_lemmas.append(lemma_sent)
             current_token_count += token_count
             i += 1
-
-    if current_chunk_raw:
-        chunks.append({
-            "raw": " ".join(current_chunk_raw),
-            "lemmas": " ".join(current_chunk_lemmas),
-        })
+    
+        if current_chunk_raw:
+            chunks.append({
+                "raw": " ".join(current_chunk_raw),
+                "lemmas": " ".join(current_chunk_lemmas),
+            })
 
     return chunks
 
@@ -152,7 +162,7 @@ def extract_text_metadata(logger: Logger, file_path: Path, file_format: str) -> 
     metadata = dict()
     if file_format == ".pdf":
         doc = fitz.open(file_path)
-        text = pdf_to_text(doc)
+        text = pdf_to_text(logger, doc)
         metadata["creation_date"] = format_date(doc.metadata.get("creationDate", ""))
         metadata["modification_date"] = format_date(doc.metadata.get("modDate", ""))
         doc.close
@@ -174,14 +184,16 @@ def extract_text_metadata(logger: Logger, file_path: Path, file_format: str) -> 
     return text, metadata
 
 
-def pdf_to_text(doc: Document) -> str:
+def pdf_to_text(logger: Logger, doc: Document) -> str:
     """
     Extract pdf text: both if it contains text or image
     :param doc: pymupdf Document
     :return: text of document
     """
     full_text = ""
-    for page_num in range(len(doc)):
+    pages = len(doc)
+    logger.info(f"Document contains {pages} pages")
+    for page_num in range(pages):
         page = doc.load_page(page_num)
         page_text = page.get_text()
         if len(page_text.strip()) < PDF_SIZE_LIMIT:
