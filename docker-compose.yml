@@ -1,22 +1,35 @@
-version: '3.8'
-
 services:
+  app:
+    build: .
+    container_name: rag_app
+    depends_on:
+      - qdrant
+      - redis
+    environment:
+      DB_HOST: qdrant
+      DB_PORT: 6333
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
   qdrant:
     image: qdrant/qdrant
     ports:
       - "${DB_PORT}:6333"
     volumes:
       - qdrant_data:/qdrant/storage
-    restart: unless-stopped 
+    restart: unless-stopped
 
   redis:
-    image: redis:alpine
+    image: redis
     ports:
       - "${REDIS_PORT}:6379"
-    restart: unless-stopped 
     volumes:
-      - redis_data:/data  
+      - redis_data:/data
+    restart: unless-stopped
 
 volumes:
   qdrant_data:
-  redis_data:  
+  redis_data:
