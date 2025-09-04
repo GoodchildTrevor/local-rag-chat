@@ -17,10 +17,6 @@ PROMPT_TEMPLATE = PromptTemplate("""
 
 
 class FixedOllama(Ollama):
-    def __init__(self, *args, **kwargs):
-        kwargs["additional_kwargs"] = kwargs.get("additional_kwargs", {})
-        kwargs["additional_kwargs"]["use_gpu"] = True
-        super().__init__(*args, **kwargs)
 
     def _get_response_token_counts(self, response):
         return None
@@ -31,13 +27,14 @@ class FixedOllama(Ollama):
 
 # Models initialization
 chat_llm = FixedOllama(
-    model="deepseek-r1:8b",
+    model="qwen3:14b",
     request_timeout=60.0,
     max_tokens=200,
 )
 
 code_assistant_llm = FixedOllama(
-    model="qwen2.5-coder:7b",
+    model="deepseek-coder-v2:16b",
     request_timeout=60.0,
     max_tokens=300,
+    temperature=0.5
 )
