@@ -19,72 +19,123 @@ from config.consts.database import (
     PDF_SIZE_LIMIT,
     DPI,
 )
-from config.settings import NLPConfig 
+from config.settings import NLPConfig
 
 
-def chunker(logger: Logger, nlp_config: NLPConfig, text: str, max_tokens: int, overlap: int) -> list[dict]:
+def preprocess_text(logger: Logger, nlp_config: NLPConfig, text: str) -> list[dict]:
     """
-    Custom chunker for documents
-    :param text: raw text
-    :param max_tokens: max tokens in chunk
-    :param overlap: default 1 sentence
-    :return: list of chunks
+    Tokenize and lemmatize raw text into sentence-level units.
+    :param logger: Logger instance for tracking pipeline execution.
+    :param nlp_config: NLP configuration object containing tokenizer, stopwords and morphological analyzer.
+    :param text: Input raw text.
+    :return: A list of dictionaries, each containing raw and lemmatized text of a sentence.
     """
     sentences = list(sentenize(text))
-
     processed = []
+
     for s in sentences:
-        raw = s.text
+        raw = s.text.strip()
         tokens = [
             t.text.lower() for t in tokenize(raw)
             if t.text.isalpha() and t.text.lower() not in nlp_config.stopwords and len(t.text) > 1
         ]
+        if not tokens:
+            logger.debug(f"Skipping empty or non-alphabetic sentence: '{raw[:30]}...'")
+            continue
+
         lemmas = [nlp_config.morph.parse(tok)[0].normal_form for tok in tokens]
         lemmatized = " ".join(lemmas)
+        if not lemmatized.strip():
+            logger.debug(f"Skipping sentence with empty lemma: '{raw[:30]}...'")
+            continue
+
         processed.append({"raw": raw, "lemmas": lemmatized})
-    logger.info("Tokenize and lemmatize finished")
+
+    logger.info(f"Tokenization and lemmatization finished: {len(processed)} valid sentences")
+    return processed
+
+
+def chunker(
+        logger: Logger, 
+        nlp_config: NLPConfig, 
+        text: str, 
+        max_tokens: int, 
+        overlap: int
+) -> list[dict]:
+    """
+    Split text into chunks constrained by maximum token length.
+    Each chunk is created based on the lemmatized representation of sentences.
+    Overlap between chunks is added by including a configurable number of
+    tokens from the previous chunk.
+    :param logger: Logger instance for tracking pipeline execution.
+    :param nlp_config: NLP configuration object containing tokenizer, stopwords and morphological analyzer.
+    :param text: Input raw text.
+    :param max_tokens: Maximum number of tokens allowed per chunk.
+    :param overlap: Number of overlapping sentences (converted to tokens) to include from the previous chunk.
+    :return: A list of dictionaries, each containing raw and lemmatized text of a chunk.
+    """
+    processed = preprocess_text(logger, nlp_config, text)
     chunks = []
-    current_chunk_raw = []
-    current_chunk_lemmas = []
-    current_token_count = 0
     i = 0
 
     while i < len(processed):
-    # Собираем чанк
         current_chunk_raw = []
         current_chunk_lemmas = []
         current_token_count = 0
-    
-        # Добавляем overlap из предыдущего чанка
+
+        # Add overlap from the previous chunk
         if chunks and overlap > 0:
             last_chunk_lemmas = chunks[-1]["lemmas"].split()
-            overlap_lemmas = last_chunk_lemmas[-overlap*2:]  # Примерно overlap предложений
-            overlap_raw = chunks[-1]["raw"].split()[-overlap*2:]
-        
+            overlap_lemmas = last_chunk_lemmas[-overlap * 2:]
+            overlap_raw = chunks[-1]["raw"].split()[-overlap * 2:]
             current_chunk_lemmas.extend(overlap_lemmas)
             current_chunk_raw.extend(overlap_raw)
-            current_token_count = sum(len(nlp_config.tokenizer.encode(lemma, disallowed_special=()))
-                                for lemma in overlap_lemmas)
-    
-        # Заполняем чанк
+            current_token_count = sum(
+                len(nlp_config.tokenizer.encode(lemma, disallowed_special=()))
+                for lemma in overlap_lemmas
+            )
+            logger.debug(f"Added overlap: {len(overlap_lemmas)} tokens")
+
+        print(i)
+
+        # Build chunk
         while i < len(processed) and current_token_count <= max_tokens:
             sent = processed[i]
             lemma_sent = sent["lemmas"]
             token_count = len(nlp_config.tokenizer.encode(lemma_sent, disallowed_special=()))
-        
+
             if current_token_count + token_count > max_tokens:
-                break
-            
+                if not current_chunk_raw:
+                    # Sentence is too long -> save separately
+                    chunks.append({
+                        "raw": sent["raw"],
+                        "lemmas": lemma_sent,
+                    })
+                    logger.warning(
+                        f"⚠️ Sentence {i} is too long "
+                        f"({token_count} tokens), stored separately"
+                    )
+                    i += 1
+                else:
+                    logger.debug(
+                        f"Chunk reached limit ({current_token_count} tokens), finishing chunk"
+                    )
+                pass
+
             current_chunk_raw.append(sent["raw"])
             current_chunk_lemmas.append(lemma_sent)
             current_token_count += token_count
             i += 1
-    
+
         if current_chunk_raw:
             chunks.append({
                 "raw": " ".join(current_chunk_raw),
                 "lemmas": " ".join(current_chunk_lemmas),
             })
+            logger.debug(
+                f"✅ Chunk created: {current_token_count} tokens, "
+                f"{len(current_chunk_raw)} sentences"
+            )
 
     return chunks
 

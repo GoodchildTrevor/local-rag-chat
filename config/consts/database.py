@@ -8,12 +8,14 @@ BATCH_SIZE = 64
 PDF_SIZE_LIMIT = 50
 DPI = 300
 # Embeddings
-DENSE_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-DENSE_VECTOR_CONFIG = "all-MiniLM-L6-v2"
+DENSE_EMBEDDING_MODEL = "mxbai-embed-large"
 SPARSE_EMBEDDING_MODEL = "Qdrant/bm25"
-SPARSE_VECTOR_CONFIG = "bm25"
 LATE_EMBEDDING_MODEL = "colbert-ir/colbertv2.0"
-LATE_VECTOR_CONFIG = "colbertv2.0"
+
+DENSE_VECTOR_CONFIG = "dense"
+SPARSE_VECTOR_CONFIG = "sparse"
+LATE_VECTOR_CONFIG = "late"
+
 # Doc info
 FILE_FORMATS = [
     ".pdf",
