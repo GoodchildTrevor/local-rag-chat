@@ -9,9 +9,11 @@ from pymorphy3 import MorphAnalyzer
 from stop_words import get_stop_words
 import tiktoken
 
-from fastembed import TextEmbedding, LateInteractionTextEmbedding, SparseTextEmbedding
+from llama_index.llms.ollama import Ollama
+from fastembed import LateInteractionTextEmbedding, SparseTextEmbedding
 from qdrant_client import QdrantClient
 from redis.asyncio import Redis
+
 
 from config.consts.database import (
     BATCH_SIZE,
@@ -46,7 +48,7 @@ from config.consts.tab_config import TabConfig
 from llm.ollama_configs import (
     chat_llm,
     code_assistant_llm,
-    FixedOllama
+    OllamaDenseEmbedding
 )
 
 load_dotenv()
@@ -111,7 +113,7 @@ class ClientsConfig:
 
 class EmbeddingModelsConfig:
     def __init__(self):
-        self.dense: TextEmbedding = TextEmbedding(DENSE_EMBEDDING_MODEL)
+        self.dense: OllamaDenseEmbedding = OllamaDenseEmbedding(DENSE_EMBEDDING_MODEL)
         self.sparse: SparseTextEmbedding = SparseTextEmbedding(SPARSE_EMBEDDING_MODEL)
         self.late: LateInteractionTextEmbedding = LateInteractionTextEmbedding(LATE_EMBEDDING_MODEL)
         self.dense_vector_config: str = DENSE_VECTOR_CONFIG
@@ -131,7 +133,7 @@ class RAGTabConfig(TabConfig):
     header: str = "Чат-бот"
     system_prompt: str = RAG_SYSTEM_PROMPT
     markdown: str = ""
-    llm: FixedOllama = chat_llm
+    llm: Ollama = chat_llm
 
 
 class CodeAssistantTabConfig(TabConfig):
@@ -139,4 +141,4 @@ class CodeAssistantTabConfig(TabConfig):
     header: str = "Код ассистент"
     system_prompt: str = CODER_SYSTEM_PROMPT
     markdown: str = ""
-    llm: FixedOllama = code_assistant_llm
+    llm: Ollama = code_assistant_llm

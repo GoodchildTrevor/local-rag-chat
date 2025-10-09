@@ -18,7 +18,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("../qdrant_ingest.log", mode="a", encoding="utf-8"),
+        logging.FileHandler("drant_ingest.log", mode="a", encoding="utf-8"),
         logging.StreamHandler()
     ]
 )
@@ -52,8 +52,8 @@ for file_path in paths_for_etl:
     if file_format in db_config.file_format:
         logger.info(f"Processing file: {file_path.name}")
         text, metadata = extract_text_metadata(logger, file_path, file_format)
-
-        chunks = chunker(nlp_config, text, db_config.chunk_size, db_config.overlap)
+        logger.info(f"getting chunks from {file_path.name}")
+        chunks = chunker(logger, nlp_config, text, db_config.chunk_size, db_config.overlap)
         raw_texts = [c['raw'] for c in chunks]
         lemma_texts = [c['lemmas'] for c in chunks]
         logger.info(f"{file_path.name}: {len(chunks)} chunks generated")

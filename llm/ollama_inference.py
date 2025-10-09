@@ -1,15 +1,14 @@
 import asyncio
 import re
 
-from llm.ollama_configs import (
-    PROMPT_TEMPLATE,
-    FixedOllama,
-)
+from llama_index.llms.ollama import Ollama
+
+from llm.ollama_configs import PROMPT_TEMPLATE
 
 
 async def ask_llm(
     logger,
-    llm: FixedOllama,
+    llm: Ollama,
     system_prompt: str,
     query: str,
     context: list[str],
