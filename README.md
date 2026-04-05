@@ -33,7 +33,7 @@ APP_PORT =                # port for FastAPI
 DB_PORT=                  # port for Qdrant
 REDIS_PORT=               # port for Redis
 RAG_DOC_COLLECTION=       # name of your main collection
-CASH_COLLECTION=          # name of cashing answer collection
+CASH_COLLECTION=          # name of caching answer collection
 SESSION_TIMEOUT_MINUTES=  # length of session
 ```
 
@@ -62,11 +62,11 @@ RAG/
 ├── config/                   # All constants for all components
 ├── consts/                   # All main constants
 ├── database/                 # Database scripts
-│   ├── cashing/              # Cashing of the best llm answers
+│   ├── caching/              # Caching of the best LLM answers
 │   ├── collection_creator/   # Create/recreate collection
 │   ├── document_upserting/   # Upsert documents
 │   ├── documents/            # Raw documents to be indexed
-│   └── searcher/             # Seacrh engine
+│   └── searcher/             # Search engine
 ├── llm/                      # Ollama config and inference scripts
 └── main.py                   # Entry point
 ```
