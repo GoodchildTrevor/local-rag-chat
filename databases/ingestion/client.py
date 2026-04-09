@@ -14,11 +14,10 @@ class IngesterClient:
     """
     Thin async wrapper around qdrant-ingester REST API.
 
-    Usage::
-
-        client = IngesterClient(base_url="http://qdrant-ingester:8002")
-        await client.sync_collection("my_collection", current_paths)
-        await client.ingest_file("my_collection", file_path)
+    Endpoints used:
+      POST /ingest        — chunk + embed + upsert one file
+      POST /ingest_text   — embed + upsert a raw text snippet (for cache Q&A)
+      POST /sync          — diff current files vs Qdrant, delete orphans
     """
 
     def __init__(self, base_url: str, timeout: float = 600.0) -> None:
@@ -26,7 +25,7 @@ class IngesterClient:
         self._timeout = timeout
 
     # ------------------------------------------------------------------
-    # Single file
+    # File ingestion
     # ------------------------------------------------------------------
 
     async def ingest_file(
@@ -36,10 +35,6 @@ class IngesterClient:
         chunk_size: int | None = None,
         overlap: int | None = None,
     ) -> dict:
-        """
-        POST /ingest — chunk + embed + upsert for one file.
-        Returns the parsed JSON response from qdrant-ingester.
-        """
         payload: dict = {"collection": collection, "file_path": str(file_path)}
         if chunk_size is not None:
             payload["chunk_size"] = chunk_size
@@ -57,6 +52,28 @@ class IngesterClient:
         return result
 
     # ------------------------------------------------------------------
+    # Raw text ingestion (cache Q&A)
+    # ------------------------------------------------------------------
+
+    async def ingest_text(
+        self,
+        collection: str,
+        text: str,
+        payload: dict | None = None,
+    ) -> dict:
+        """
+        POST /ingest_text — embed a raw text string and upsert into Qdrant.
+        Used by AnswerCash to persist Q&A pairs without going through chunker.
+        """
+        body = {"collection": collection, "text": text, "payload": payload or {}}
+        async with httpx.AsyncClient(timeout=self._timeout) as http:
+            response = await http.post(f"{self._base}/ingest_text", json=body)
+        response.raise_for_status()
+        result = response.json()
+        logger.info("ingest_text into '%s': %s", collection, result)
+        return result
+
+    # ------------------------------------------------------------------
     # Collection sync
     # ------------------------------------------------------------------
 
@@ -65,10 +82,6 @@ class IngesterClient:
         collection: str,
         current_file_paths: set[Path],
     ) -> tuple[list[Path], int]:
-        """
-        POST /sync — detect new files and delete orphaned chunks.
-        Returns (new_paths, deleted_chunks_count).
-        """
         payload = {
             "collection": collection,
             "current_file_paths": [str(p) for p in current_file_paths],
@@ -96,12 +109,6 @@ class IngesterClient:
         chunk_size: int | None = None,
         overlap: int | None = None,
     ) -> dict[str, int]:
-        """
-        Scan *folder_path*, group files by first-level subfolder (= collection name),
-        sync each collection against Qdrant, then ingest new files.
-
-        Returns a dict {collection_name: total_chunks_upserted}.
-        """
         files_by_collection: dict[str, list[Path]] = defaultdict(list)
         for path in folder_path.rglob("*"):
             if not path.is_file():
@@ -115,16 +122,9 @@ class IngesterClient:
                 continue
             files_by_collection[collection_name].append(path)
 
-        logger.info(
-            "Found %d collections in %s",
-            len(files_by_collection), folder_path,
-        )
-
         totals: dict[str, int] = {}
         for collection, file_paths in files_by_collection.items():
-            current_paths = set(file_paths)
-            new_paths, deleted = await self.sync_collection(collection, current_paths)
-
+            new_paths, deleted = await self.sync_collection(collection, set(file_paths))
             upserted = 0
             for fp in new_paths:
                 try:
@@ -142,11 +142,9 @@ class IngesterClient:
                     )
                 except Exception as e:
                     logger.error("Ingest failed for %s: %s", fp.name, e)
-
             totals[collection] = upserted
             logger.info(
-                "Collection '%s': %d new files, %d chunks upserted, %d orphan chunks deleted",
+                "Collection '%s': %d new, %d upserted, %d orphans deleted",
                 collection, len(new_paths), upserted, deleted,
             )
-
         return totals

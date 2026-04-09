@@ -10,6 +10,8 @@ services:
         condition: service_started
       qdrant-ingester:
         condition: service_healthy
+      qdrant-searcher:
+        condition: service_healthy
     environment:
       HOST: qdrant
       DB_PORT: ${DB_PORT:-6333}
@@ -22,6 +24,7 @@ services:
       RAG_SNAPSHOT_DIR: ${RAG_SNAPSHOT_DIR:-/app/snapshots}
       DOCUMENT_CHUNKER_URL: http://document-chunker:8001/chunk
       QDRANT_INGESTER_URL: http://qdrant-ingester:8002
+      QDRANT_SEARCHER_URL: http://qdrant-searcher:8033
     ports:
       - "${APP_PORT:-8000}:8000"
     volumes:
@@ -30,13 +33,9 @@ services:
 
   document-chunker:
     image: goodchildtrevor/document-chunker:latest
-    # build:
-    #   context: ../document-chunker   # uncomment for local dev
     container_name: document_chunker
     restart: unless-stopped
     environment:
-      FILE_WORKER_URL: ${FILE_WORKER_URL}
-      LIBREOFFICE_TIMEOUT: ${LIBREOFFICE_TIMEOUT:-60}
       CHUNK_SIZE: ${CHUNK_SIZE:-512}
       OVERLAP: ${OVERLAP:-1}
     healthcheck:
@@ -48,8 +47,6 @@ services:
 
   qdrant-ingester:
     image: goodchildtrevor/qdrant-ingester:latest
-    # build:
-    #   context: ../qdrant-ingester    # uncomment for local dev
     container_name: qdrant_ingester
     restart: unless-stopped
     depends_on:
@@ -74,6 +71,24 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  qdrant-searcher:
+    image: goodchildtrevor/qdrant-searcher:latest
+    container_name: qdrant_searcher
+    restart: unless-stopped
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    environment:
+      DB_HOST: qdrant
+      DB_PORT: ${DB_PORT:-6333}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8033/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    # qdrant-searcher loads heavy ML models on startup — give it more time
 
   qdrant:
     image: qdrant/qdrant:latest

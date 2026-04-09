@@ -4,18 +4,17 @@ uvicorn==0.33.0
 nicegui==2.20.0
 httpx>=0.27.0
 
-# ── LLM / Embeddings ───────────────────────────────────────────────────────────
-fastembed==0.7.1
+# ── LLM ────────────────────────────────────────────────────────────────────────
 llama-index-core==0.12.24.post1
 llama-index-llms-ollama==0.5.3
 
-# ── Vector DB ──────────────────────────────────────────────────────────────────
+# ── Vector DB (client only — for AnswerCash.retrieve) ────────────────────────────
 qdrant-client==1.14.3
 
 # ── Cache ──────────────────────────────────────────────────────────────────────
 redis==6.3.0
 
-# ── NLP  (query-time lemmatisation — also used by document-chunker) ────────────
+# ── NLP (query-time lemmatisation) ────────────────────────────────────────────
 pymorphy3==2.0.4
 razdel==0.5.0
 stop-words==2018.7.23
@@ -28,8 +27,9 @@ ragas==0.2.15
 more-itertools==10.3.0
 pillow==11.1.0
 
-# ── Removed (moved to document-chunker) ────────────────────────────────────────
-# aspose-words   → document-chunker
-# docx2python    → document-chunker
-# pymupdf        → document-chunker
-# pytesseract    → document-chunker
+# ── Removed ─────────────────────────────────────────────────────────────────────
+# fastembed        → qdrant-searcher + qdrant-ingester
+# aspose-words     → document-chunker
+# docx2python      → document-chunker
+# pymupdf          → document-chunker
+# pytesseract      → document-chunker

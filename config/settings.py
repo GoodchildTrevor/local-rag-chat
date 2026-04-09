@@ -10,20 +10,9 @@ from stop_words import get_stop_words
 import tiktoken
 
 from llama_index.llms.ollama import Ollama
-from fastembed import LateInteractionTextEmbedding, SparseTextEmbedding
 from qdrant_client import QdrantClient
 from redis.asyncio import Redis
 
-from config.consts.database import (
-    DENSE_EMBEDDING_MODEL,
-    SPARSE_EMBEDDING_MODEL,
-    LATE_EMBEDDING_MODEL,
-    DENSE_VECTOR_CONFIG,
-    SPARSE_VECTOR_CONFIG,
-    LATE_VECTOR_CONFIG,
-    FILE_FORMATS,
-    SCROLL_LIMIT,
-)
 from config.consts.searching import (
     TOP_K,
     RELEVANCY_THRESHOLD,
@@ -44,12 +33,11 @@ from config.consts.tab_config import TabConfig
 from llm.ollama_configs import (
     chat_llm,
     code_assistant_llm,
-    OllamaDenseEmbedding,
 )
 
 load_dotenv()
 
-# Singletons initialised once at import time — reused across requests
+# Singletons initialised once at import time
 RU_STOPWORDS = set(get_stop_words("ru"))
 morph = pymorphy3.MorphAnalyzer()
 tokenizer = tiktoken.get_encoding("cl100k_base")
@@ -72,6 +60,9 @@ class AppConfig(BaseSettings):
     cosine_similarity_threshold: float = COSINE_SIMILARITY_THRESHOLD
 
     # External microservice URLs
+    qdrant_searcher_url: str = pydantic_field(
+        description="Base URL of qdrant-searcher (e.g. http://qdrant-searcher:8033)"
+    )
     document_chunker_url: str = pydantic_field(
         description="URL of document-chunker /chunk endpoint"
     )
@@ -92,9 +83,6 @@ class ChatRequest(BaseModel):
 
 
 class DBConfig(BaseSettings):
-    """Minimal DB/snapshot settings still needed by app."""
-    file_formats: list[str] = FILE_FORMATS
-    scroll_limit: int = SCROLL_LIMIT
     rag_snapshot_dir: str = pydantic_field(
         description="Directory for Qdrant snapshots"
     )
@@ -120,21 +108,10 @@ class ClientsConfig:
         )
 
 
-class EmbeddingModelsConfig:
-    def __init__(self):
-        self.dense: OllamaDenseEmbedding = OllamaDenseEmbedding(DENSE_EMBEDDING_MODEL)
-        self.sparse: SparseTextEmbedding = SparseTextEmbedding(SPARSE_EMBEDDING_MODEL)
-        self.late: LateInteractionTextEmbedding = LateInteractionTextEmbedding(LATE_EMBEDDING_MODEL)
-        self.dense_vector_config: str = DENSE_VECTOR_CONFIG
-        self.sparse_vector_config: str = SPARSE_VECTOR_CONFIG
-        self.late_vector_config: str = LATE_VECTOR_CONFIG
-
-
 class NLPConfig:
     """
-    NLP tools used at **query time** (per-user request) for normalising the
-    search query before vectorisation.  Also used by document-chunker during
-    indexing — kept here because app needs it independently.
+    NLP tools for query-time normalisation (tokenise + lemmatise).
+    Lives in app because Dialogue.processing_query() runs per-user-request.
     """
     def __init__(self):
         self.stopwords: set = RU_STOPWORDS

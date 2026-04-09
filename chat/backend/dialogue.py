@@ -1,144 +1,104 @@
-import asyncio
-from qdrant_client import models
-from razdel import tokenize
+"""Dialogue: orchestrates NLP query normalisation + remote vector search."""
+from __future__ import annotations
+
 from logging import Logger
 
-from databases.searcher.search import (
-    combined_dense_sparse_scores, 
-    dense_search, 
-    HybridHit
-)
+from razdel import tokenize
+
 from chat.interface.chat_utils import get_normal_form
-from config.settings import AppConfig, ClientsConfig, EmbeddingModelsConfig, NLPConfig
+from config.settings import AppConfig, ClientsConfig, NLPConfig
+from databases.searcher.searcher_client import HybridHit, SearcherClient
+from databases.cashing.cashing import AnswerCash
 
 
 class Dialogue:
     """
-    Main class for Qdrant DB search
+    Main class for user-facing search.
+
+    Query lifecycle:
+      1. processing_query()  — tokenise + lemmatise (local NLP, pymorphy3)
+      2. get_searching_results() — POST qdrant-searcher /vector_search
+      3. get_cached_answers()    — POST qdrant-searcher /vector_search on cache collection
     """
+
     def __init__(
         self,
         app_config: AppConfig,
         clients_config: ClientsConfig,
-        embedding_models_config: EmbeddingModelsConfig,
         nlp_config: NLPConfig,
         logger: Logger,
-    ):
-        self.app_config=app_config
-        self.embedding_models_config=embedding_models_config
+    ) -> None:
+        self.app_config = app_config
         self.logger = logger
-        self.client = clients_config.qdrant_client
-        self.dense_threshold = app_config.dense_threshold
-        self.sparse_threshold = app_config.sparse_threshold
-        self.threshold = app_config.threshold
-        self.cosine_similarity_threshold = app_config.cosine_similarity_threshold
-        self.top_k = app_config.top_k
+        # Redis client kept for AnswerCash
+        self.redis = clients_config.redis_client
         self.morph = nlp_config.morph
         self.stopwords = nlp_config.stopwords
+        self.top_k = app_config.top_k
+        self.cosine_similarity_threshold = app_config.cosine_similarity_threshold
+
+        self._searcher = SearcherClient(
+            base_url=app_config.qdrant_searcher_url,
+            timeout=30.0,
+        )
+
+    # ------------------------------------------------------------------
+    # NLP
+    # ------------------------------------------------------------------
 
     def processing_query(self, query: str) -> str:
         """
-        Normalizing of user's query: tokenize, removing stopwords, lemmatizing
-        :param query: user's query
-        :return: normalized query
+        Tokenise, remove stopwords, lemmatise — all local (pymorphy3 + razdel).
         """
         tokens = [
             t.text.lower() for t in tokenize(query)
-            if t.text.isalpha() and t.text.lower() not in self.stopwords and len(t.text) > 1
+            if t.text.isalpha()
+            and t.text.lower() not in self.stopwords
+            and len(t.text) > 1
         ]
         lemmas = [get_normal_form(tok, self.morph) for tok in tokens]
-        normalized_query = " ".join(lemmas).strip()
-        self.logger.info(f"Query: `{query}` → normalized `{normalized_query}`")
-        return normalized_query
-    
-    async def _vectorize_query(
-        self,
-        normalized_query: str
-    ) -> tuple[list[float], models.SparseVector]:
-        """
-        One fuction to all vectorizing operations
-        :param normalized_query: normalized user's query
-        :return: dense and sparse vectors
-        """
-        dense_future = asyncio.to_thread(
-            lambda: next(self.embedding_models_config.dense.query_embed(normalized_query))
-        )
-        sparse_future = asyncio.to_thread(
-            lambda: next(self.embedding_models_config.sparse.query_embed(normalized_query))
-        )
+        normalized = " ".join(lemmas).strip()
+        self.logger.info("Query: `%s` → normalized `%s`", query, normalized)
+        return normalized
 
-        dense_vector, sparse_raw = await asyncio.gather(dense_future, sparse_future)
-        sparse_vector = models.SparseVector(indices=sparse_raw.indices, values=sparse_raw.values)
-
-        self.logger.debug("Embeddings computed")
-        return dense_vector, sparse_vector
+    # ------------------------------------------------------------------
+    # Search
+    # ------------------------------------------------------------------
 
     async def get_searching_results(
-            self, 
-            collection:str, 
-            normalized_query: str
+        self,
+        collection: str,
+        normalized_query: str,
     ) -> list[HybridHit]:
         """
-        Vectorizes the user's query and retrieves relevant search results.
-        1. Normalizes and processes the input query.
-        2. Generates a dense vector using a dense embedding model.
-        3. Generates a sparse vector using a BM25-based embedding model.
-        4. Combines both dense and sparse representations to retrieve the most relevant text chunks.
-        :param normalized_query: normalized user's query
-        :return: a list of top-matching text chunks based on the combined embedding scores.
+        Hybrid vector search via qdrant-searcher microservice.
         """
-        dense_vector, sparse_vector = await self._vectorize_query(normalized_query)
-        results = combined_dense_sparse_scores(
-            app_config=self.app_config,
-            embedding_models_config=self.embedding_models_config,
-            client=self.client,
-            collection=collection,
-            dense_vectors=dense_vector,
-            sparse_vectors=sparse_vector,
-            dense_threshold=self.dense_threshold,
-            sparse_threshold=self.sparse_threshold,
-            threshold=self.threshold,
-            top_k=self.top_k
+        return await self._searcher.search(
+            text=normalized_query,
+            collection_name=collection,
+            method="hybrid",
+            top_k=self.top_k,
         )
 
-        for hit in results:
-            score = hit.score
-            doc_id = hit.id
-            source = hit.source
-            payload = hit.payload or {}
-            dense_score = payload.get("_dense_score")
-            sparse_score = payload.get("_sparse_score")
-            snippet = payload.get("document", "")[:100].replace("\n", " ")
-            path = payload.get("file_path", "—")
-
-            self.logger.info(
-                f"[{source.upper():6}] score={score:7.4f}  "
-                f"dense={dense_score if dense_score is not None else '  N/A':>7}  "
-                f"sparse={sparse_score if sparse_score is not None else '  N/A':>7}  "
-                f"id={doc_id}  path={path}  text='{snippet}…'"
-            )
-
-        return results
-    
-    async def get_cashed_answers(
-            self,
-            embedding_models_config,
-            collection:str, 
-            normalized_query: str
+    async def get_cached_answers(
+        self,
+        collection: str,
+        normalized_query: str,
     ) -> list[HybridHit]:
         """
-        Vectorizes the user's query and retrieves relevant search results.
-        1. Normalizes and processes the input query.
-        2. Check cashed questions for similar examples
-        :param collection:
-        :param normalized_query: normalized user's query
-        :return: a list consists of one most similar cashed question (if similarity is high enough)
+        Dense-only search against the cache collection.
+        Returns at most one hit (best match above threshold).
         """
-        dense_vector, _ = await self._vectorize_query(normalized_query)
-        return dense_search(
-            embedding_models_config=embedding_models_config,
-            client=self.client,
-            collection=collection,
-            dense_vectors=dense_vector,
-            cosine_similarity_threshold=self.cosine_similarity_threshold
+        hits = await self._searcher.search(
+            text=normalized_query,
+            collection_name=collection,
+            method="dense",
+            top_k=1,
         )
+        filtered = [
+            h for h in hits
+            if h.score >= self.cosine_similarity_threshold
+        ]
+        if not filtered:
+            self.logger.warning("No cached answer above threshold for query: %s", normalized_query)
+        return filtered
