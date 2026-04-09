@@ -273,3 +273,4 @@ def dense_search(
         else:
             logger.warning("No high scored answers found")
             return list()
+            

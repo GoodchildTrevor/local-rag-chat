@@ -123,12 +123,17 @@ class CreateCollection:
 if __name__ == "__main__":
     sample_text = "Hello World"
     dense_embeddings = list(embedding_models_config.dense.embed(sample_text))
-    late_embeddings = [list(vectors) for vectors in embedding_models_config.late.embed(sample_text)]
-    CreateCollection(
-        client_config=client_config,
-        collection_name=app_config.rag_collection,
-        dense_embeddings=dense_embeddings,
-        embedding_models_config=embedding_models_config,
-        late_embeddings=None,
-        recreation=True,
-    ).build_collection()
+    collections = [app_config.cash_collection, app_config.rag_collection, app_config.mech_collection]
+    for collection_name in collections:
+        if not client_config.qdrant_client.collection_exists(collection_name):
+            CreateCollection(
+                client_config=client_config,
+                collection_name=collection_name,
+                dense_embeddings=dense_embeddings,
+                embedding_models_config=embedding_models_config,
+                late_embeddings=None,
+                recreation=True,
+            ).build_collection()
+        else:
+            continue
+            
