@@ -4,6 +4,11 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, field as pydantic_field
 from pydantic_settings import BaseSettings
 
+import pymorphy3
+from pymorphy3 import MorphAnalyzer
+from stop_words import get_stop_words
+import tiktoken
+
 from llama_index.llms.ollama import Ollama
 from fastembed import LateInteractionTextEmbedding, SparseTextEmbedding
 from qdrant_client import QdrantClient
@@ -44,6 +49,11 @@ from llm.ollama_configs import (
 
 load_dotenv()
 
+# Singletons initialised once at import time — reused across requests
+RU_STOPWORDS = set(get_stop_words("ru"))
+morph = pymorphy3.MorphAnalyzer()
+tokenizer = tiktoken.get_encoding("cl100k_base")
+
 
 class AppConfig(BaseSettings):
     app_port: int = pydantic_field(description="HTTP port the app listens on")
@@ -82,6 +92,7 @@ class ChatRequest(BaseModel):
 
 
 class DBConfig(BaseSettings):
+    """Minimal DB/snapshot settings still needed by app."""
     file_formats: list[str] = FILE_FORMATS
     scroll_limit: int = SCROLL_LIMIT
     rag_snapshot_dir: str = pydantic_field(
@@ -117,6 +128,18 @@ class EmbeddingModelsConfig:
         self.dense_vector_config: str = DENSE_VECTOR_CONFIG
         self.sparse_vector_config: str = SPARSE_VECTOR_CONFIG
         self.late_vector_config: str = LATE_VECTOR_CONFIG
+
+
+class NLPConfig:
+    """
+    NLP tools used at **query time** (per-user request) for normalising the
+    search query before vectorisation.  Also used by document-chunker during
+    indexing — kept here because app needs it independently.
+    """
+    def __init__(self):
+        self.stopwords: set = RU_STOPWORDS
+        self.morph: MorphAnalyzer = morph
+        self.tokenizer: tiktoken.Encoding = tokenizer
 
 
 class RAGTabConfig(TabConfig):
