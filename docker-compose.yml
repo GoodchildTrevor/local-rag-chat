@@ -2,33 +2,102 @@ services:
   app:
     build: .
     container_name: rag_app
-    depends_on:
-      - qdrant
-      - redis
-    environment:
-      DB_HOST: qdrant
-      DB_PORT: 6333
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-    ports:
-      - "8000:8000"
     restart: unless-stopped
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      qdrant-ingester:
+        condition: service_healthy
+    environment:
+      HOST: qdrant
+      DB_PORT: ${DB_PORT:-6333}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      APP_PORT: ${APP_PORT:-8000}
+      RAG_DOC_COLLECTION: ${RAG_DOC_COLLECTION}
+      CASH_COLLECTION: ${CASH_COLLECTION}
+      SESSION_TIMEOUT_MINUTES: ${SESSION_TIMEOUT_MINUTES:-30}
+      RAG_SNAPSHOT_DIR: ${RAG_SNAPSHOT_DIR:-/app/snapshots}
+      DOCUMENT_CHUNKER_URL: http://document-chunker:8001/chunk
+      QDRANT_INGESTER_URL: http://qdrant-ingester:8002
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - ./databases/documents:/app/databases/documents
+      - ./databases/snapshots:/app/snapshots
+
+  document-chunker:
+    image: goodchildtrevor/document-chunker:latest
+    # build:
+    #   context: ../document-chunker   # uncomment for local dev
+    container_name: document_chunker
+    restart: unless-stopped
+    environment:
+      FILE_WORKER_URL: ${FILE_WORKER_URL}
+      LIBREOFFICE_TIMEOUT: ${LIBREOFFICE_TIMEOUT:-60}
+      CHUNK_SIZE: ${CHUNK_SIZE:-512}
+      OVERLAP: ${OVERLAP:-1}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  qdrant-ingester:
+    image: goodchildtrevor/qdrant-ingester:latest
+    # build:
+    #   context: ../qdrant-ingester    # uncomment for local dev
+    container_name: qdrant_ingester
+    restart: unless-stopped
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      document-chunker:
+        condition: service_healthy
+    environment:
+      DOCUMENT_CHUNKER_URL: http://document-chunker:8001/chunk
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: ${DB_PORT:-6333}
+      DENSE_MODEL_NAME: ${DENSE_MODEL_NAME:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
+      SPARSE_MODEL_NAME: ${SPARSE_MODEL_NAME:-Qdrant/bm25}
+      BATCH_SIZE: ${BATCH_SIZE:-16}
+      UPSERT_BATCH_SIZE: ${UPSERT_BATCH_SIZE:-16}
+      SCROLL_LIMIT: ${SCROLL_LIMIT:-1000}
+      CHUNK_SIZE: ${CHUNK_SIZE:-512}
+      OVERLAP: ${OVERLAP:-1}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   qdrant:
-    image: qdrant/qdrant
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
     ports:
-      - "${DB_PORT}:6333"
+      - "${DB_PORT:-6333}:6333"
     volumes:
       - qdrant_data:/qdrant/storage
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   redis:
-    image: redis
+    image: redis:latest
+    container_name: redis
+    restart: unless-stopped
     ports:
-      - "${REDIS_PORT}:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
-    restart: unless-stopped
 
 volumes:
   qdrant_data:

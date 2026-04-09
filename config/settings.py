@@ -1,30 +1,21 @@
 import os
 from dotenv import load_dotenv
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field as pydantic_field
 from pydantic_settings import BaseSettings
-
-import pymorphy3
-from pymorphy3 import MorphAnalyzer
-from stop_words import get_stop_words
-import tiktoken
 
 from llama_index.llms.ollama import Ollama
 from fastembed import LateInteractionTextEmbedding, SparseTextEmbedding
 from qdrant_client import QdrantClient
 from redis.asyncio import Redis
 
-
 from config.consts.database import (
-    BATCH_SIZE,
     DENSE_EMBEDDING_MODEL,
     SPARSE_EMBEDDING_MODEL,
     LATE_EMBEDDING_MODEL,
     DENSE_VECTOR_CONFIG,
     SPARSE_VECTOR_CONFIG,
     LATE_VECTOR_CONFIG,
-    CHUNK_SIZE,
-    OVERLAP,
     FILE_FORMATS,
     SCROLL_LIMIT,
 )
@@ -48,30 +39,17 @@ from config.consts.tab_config import TabConfig
 from llm.ollama_configs import (
     chat_llm,
     code_assistant_llm,
-    OllamaDenseEmbedding
+    OllamaDenseEmbedding,
 )
 
 load_dotenv()
 
-RU_STOPWORDS = set(get_stop_words("ru"))
-morph = pymorphy3.MorphAnalyzer()
-tokenizer = tiktoken.get_encoding("cl100k_base")
-
-HOST = os.getenv("HOST")
-DB_PORT = os.getenv("DB_PORT")
-REDIS_PORT = os.getenv("REDIS_PORT")
-APP_PORT = os.getenv("APP_PORT")
-RAG_DOC_COLLECTION = os.getenv("RAG_DOC_COLLECTION")
-CASH_COLLECTION = os.getenv("CASH_COLLECTION")
-TIMEOUT = os.getenv('SESSION_TIMEOUT_MINUTES')
-RAG_SNAPSHOT_DIR = os.getenv("RAG_SNAPSHOT_DIR")
-
 
 class AppConfig(BaseSettings):
-    app_port: int = APP_PORT
-    timeout: int = TIMEOUT
-    rag_collection: str = RAG_DOC_COLLECTION
-    cash_collection: str = CASH_COLLECTION
+    app_port: int = pydantic_field(description="HTTP port the app listens on")
+    timeout: int = pydantic_field(description="Session timeout in minutes")
+    rag_collection: str = pydantic_field(description="Qdrant collection for RAG docs")
+    cash_collection: str = pydantic_field(description="Qdrant collection for cache")
     top_k: int = TOP_K
     relevancy_threshold: float = RELEVANCY_THRESHOLD
     faithfulness_threshold: float = FAITHFULNESS_THRESHOLD
@@ -83,10 +61,19 @@ class AppConfig(BaseSettings):
     threshold: float = THRESHOLD
     cosine_similarity_threshold: float = COSINE_SIMILARITY_THRESHOLD
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
+    # External microservice URLs
+    document_chunker_url: str = pydantic_field(
+        description="URL of document-chunker /chunk endpoint"
+    )
+    qdrant_ingester_url: str = pydantic_field(
+        description="Base URL of qdrant-ingester (e.g. http://qdrant-ingester:8002)"
+    )
+
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 class ChatRequest(BaseModel):
@@ -94,21 +81,32 @@ class ChatRequest(BaseModel):
     history: list[tuple[str, str]]
 
 
-class DBConfig:
-    def __init__(self):
-        self.batch_size: int = BATCH_SIZE
-        self.chunk_size: int = CHUNK_SIZE
-        self.overlap: int = OVERLAP
-        self.file_format: str = FILE_FORMATS
-        self.scroll_limit: int = SCROLL_LIMIT
-        self.rag_snapshot_dir: str = RAG_SNAPSHOT_DIR
+class DBConfig(BaseSettings):
+    file_formats: list[str] = FILE_FORMATS
+    scroll_limit: int = SCROLL_LIMIT
+    rag_snapshot_dir: str = pydantic_field(
+        description="Directory for Qdrant snapshots"
+    )
+
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 class ClientsConfig:
-    def __init__(self, host=HOST, db_port=DB_PORT, redis_port=REDIS_PORT):
+    def __init__(
+        self,
+        host: str = os.getenv("HOST"),
+        db_port: str = os.getenv("DB_PORT"),
+        redis_port: str = os.getenv("REDIS_PORT"),
+    ):
         self.qdrant_url: str = f"http://{host}:{db_port}"
         self.qdrant_client: QdrantClient = QdrantClient(host, port=db_port)
-        self.redis_client: Redis = Redis(host=host, port=redis_port, db=0, decode_responses=True)
+        self.redis_client: Redis = Redis(
+            host=host, port=redis_port, db=0, decode_responses=True
+        )
 
 
 class EmbeddingModelsConfig:
@@ -119,13 +117,6 @@ class EmbeddingModelsConfig:
         self.dense_vector_config: str = DENSE_VECTOR_CONFIG
         self.sparse_vector_config: str = SPARSE_VECTOR_CONFIG
         self.late_vector_config: str = LATE_VECTOR_CONFIG
-
-
-class NLPConfig:
-    def __init__(self):
-        self.stopwords: set = RU_STOPWORDS
-        self.morph: MorphAnalyzer = morph
-        self.tokenizer: tiktoken.Encoding = tokenizer 
 
 
 class RAGTabConfig(TabConfig):
