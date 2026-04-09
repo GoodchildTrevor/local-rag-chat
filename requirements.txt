@@ -26,10 +26,3 @@ ragas==0.2.15
 # ── Misc ───────────────────────────────────────────────────────────────────────
 more-itertools==10.3.0
 pillow==11.1.0
-
-# ── Removed ─────────────────────────────────────────────────────────────────────
-# fastembed        → qdrant-searcher + qdrant-ingester
-# aspose-words     → document-chunker
-# docx2python      → document-chunker
-# pymupdf          → document-chunker
-# pytesseract      → document-chunker
